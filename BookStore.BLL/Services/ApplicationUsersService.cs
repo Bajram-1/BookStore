@@ -79,10 +79,10 @@ namespace BookStore.BLL.Services
             return applicationUsersRepository.GetAll(filter, includeProperties);
         }
 
-        public ApplicationUserAddEditRequestModel GetApplicationUserById(string userId)
+        public DTO.ApplicationUser GetApplicationUserById(string userId)
         {
             var dbUser = applicationUsersRepository.GetById(userId) ?? throw new Exception("User not found");
-            return new ApplicationUserAddEditRequestModel
+            return new DTO.ApplicationUser
             {
 
                 Id = dbUser.Id,
@@ -91,10 +91,8 @@ namespace BookStore.BLL.Services
                 CompanyId = dbUser.CompanyId,
                 PostalCode = dbUser.PostalCode,
                 State = dbUser.State,
-                Role = dbUser.Role,
                 StreetAddress = dbUser.StreetAddress,
                 PhoneNumber = dbUser.PhoneNumber,
-                Email = dbUser.Email
             };
         }
 

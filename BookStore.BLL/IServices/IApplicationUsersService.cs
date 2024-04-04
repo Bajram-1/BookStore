@@ -16,7 +16,7 @@ namespace BookStore.BLL.IServices
         void RemoveApplicationUser(string userId);
         void UpdateApplicationUser(string id, ApplicationUserAddEditRequestModel userObj);
         IEnumerable<DAL.Entities.ApplicationUser> GetAllApplicationUsers(Expression<Func<DAL.Entities.ApplicationUser, bool>>? filter = null, string? includeProperties = null);
-        ApplicationUserAddEditRequestModel GetApplicationUserById(string userId);
+        DTO.ApplicationUser GetApplicationUserById(string userId);
         void RemoveRange(IEnumerable<DAL.Entities.ApplicationUser> applicationUsers);
         DTO.ApplicationUser Get(Expression<Func<DAL.Entities.ApplicationUser, bool>> filter);
         RoleManagmentVM GetUserRoleManagement(string userId);
