@@ -25,7 +25,6 @@ namespace BookStore.BLL.IServices
         void AddCartItem(int cartId);
         int DeleteItem(int id);
         void ProcessOrderConfirmation(int orderId);
-        double GetPriceBasedOnQuantity(DTO.ShoppingCart shoppingCart);
-
+        double GetPriceBasedOnQuantity(BLL.DTO.ShoppingCart shoppingCart);
     }
 }
