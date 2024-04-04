@@ -1,6 +1,7 @@
 ﻿using BookStore.DAL.Entities;
 using BookStore.DAL.IRepositories;
 using Microsoft.EntityFrameworkCore;
+using SendGrid.Helpers.Mail;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -72,6 +73,11 @@ namespace BookStore.DAL.Repositories
         public void RemoveRange(IEnumerable<ProductImage> productImages)
         {
             _dbSet.RemoveRange(productImages);
+        }
+
+        public IEnumerable<ProductImage> GetProductImagesByProductId(int productId)
+        {
+            return _dbSet.Where(pi => pi.ProductId == productId).ToList();
         }
     }
 }

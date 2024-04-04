@@ -76,6 +76,18 @@ namespace BookStore.BLL.Services
             return result;
         }
 
+        public IEnumerable<DTO.ProductImage> GetProductImagesByProductId(int productId)
+        {
+            var productImages = productImagesRepository.GetProductImagesByProductId(productId);
+
+            return productImages.Select(image => new DTO.ProductImage
+            {
+                Id = image.Id,
+                ProductId = image.ProductId,
+                ImageUrl = image.ImageUrl
+            });
+        }
+
         public void Update(int id, ProductImageAddEditRequestModel model)
         {
             var productImageToUpdate = productImagesRepository.Get(p => p.Id == id);

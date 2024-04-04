@@ -11,5 +11,6 @@ namespace BookStore.DAL.IRepositories
         void Add(ProductImage productImage);
         void Remove(ProductImage productImage);
         void RemoveRange(IEnumerable<ProductImage> productImages);
+        IEnumerable<ProductImage> GetProductImagesByProductId(int productId);
     }
 }
