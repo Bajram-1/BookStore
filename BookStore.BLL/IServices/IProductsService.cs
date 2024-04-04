@@ -23,5 +23,7 @@ namespace BookStore.BLL.IServices
         IEnumerable<DTO.Product> GetAllProductsWithCategory();
         IEnumerable<BookStore.DAL.Entities.Product> GetAllCategoryProductImages(string includeProperties);
         DAL.Entities.Product GetProductDetails(int productId, string includeProperties);
+        double CalculateTotalPrice(DAL.Entities.ShoppingCart shoppingCart);
+        DAL.Entities.Product GetProductById(int productId);
     }
 }

@@ -50,7 +50,29 @@ namespace BookStore.DAL.Repositories
                     query = query.Include(includeProperty);
                 }
             }
-            return query.ToList();
+
+            IEnumerable<Product> productsDTO = query.Select(entity => new Product
+            {
+                Id = entity.Id,
+                Author = entity.Author,
+                Category = entity.Category,
+                CategoryId = entity.CategoryId,
+                Description = entity.Description,
+                ISBN = entity.ISBN,
+                ListPrice = entity.ListPrice,
+                Price = entity.Price,
+                Price50 = entity.Price50,
+                Price100 = entity.Price100,
+                ProductImages = entity.ProductImages,
+                Title = entity.Title,
+            });
+
+            return productsDTO.ToList();
+        }
+
+        public DAL.Entities.Product GetProductById(int productId)
+        {
+            return _dbSet.FirstOrDefault(p => p.Id == productId);
         }
 
         public void Remove(Product product)
