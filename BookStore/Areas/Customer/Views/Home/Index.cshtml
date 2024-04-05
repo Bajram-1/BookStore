@@ -1,5 +1,15 @@
 ﻿@model IEnumerable<BookStore.DAL.Entities.Product>
 
+<style>
+    .h5 {
+        font-size: 1.13rem;
+    }
+
+    .footer[b-tqf8g8k84y]{
+        line-height: 35px;
+    }
+</style>
+
 <div class="row pb-3">
     @foreach (var product in Model)
     {
@@ -42,7 +52,7 @@
                             <a asp-action="Details"
                                asp-route-productId="@product.Id"
                                class="btn btn-primary bg-gradient border-0 form-control">
-                                Details
+                                <i class="bi bi-info" style="font-size: 15px;"></i> Details
                             </a>
                         </div>
                     </div>
