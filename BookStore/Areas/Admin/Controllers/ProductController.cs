@@ -105,7 +105,6 @@ namespace BookStore.Areas.Admin.Controllers
         [HttpGet]
         public IActionResult GetAll()
         {
-            //duhet DTO kujdes!!!!
             List<DAL.Entities.Product> objProductList = productsService.GetAllProducts(includeProperties: "Category").ToList();
             return Json(new { data = objProductList });
         }
