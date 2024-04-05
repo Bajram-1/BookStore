@@ -77,7 +77,10 @@ namespace BookStore.DAL.Repositories
 
         public IEnumerable<ShoppingCart> GetCartItems(string userId)
         {
-            return _dbSet.Where(item => item.ApplicationUserId == userId).ToList();
+            return _dbSet
+                .Where(item => item.ApplicationUserId == userId)
+                .Include(item => item.Product)
+                .ToList();
         }
     }
 }

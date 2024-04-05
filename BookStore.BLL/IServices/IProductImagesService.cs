@@ -1,4 +1,6 @@
-﻿using BookStore.BLL.DTO.Requests;
+﻿using BookStore.BLL.DTO;
+using BookStore.BLL.DTO.Requests;
+using BookStore.DAL.Entities;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -14,6 +16,7 @@ namespace BookStore.BLL.IServices
         IEnumerable<DTO.ProductImage> GetProductImages();
         void Update(int id, ProductImageAddEditRequestModel model);
         IEnumerable<DTO.ProductImage> GetAllProductImages();
+        IEnumerable<DTO.ProductImage> GetProductImagesByProductId(int productId);
         int DeleteImage(int imageId);
     }
 }

@@ -24,48 +24,65 @@ namespace BookStore.Areas.Customer.Controllers
     {
         public IActionResult Index()
         {
-            try
-            {
-                var userId = GetCurrentUserId();
-                var shoppingCartList = shoppingCartsService.GetCartItems(userId);
-                var orderTotal = CalculateOrderTotal(shoppingCartList);
-                PopulateProductImages(shoppingCartList);
+            var claimsIdentity = (ClaimsIdentity)User.Identity;
+            var userId = claimsIdentity.FindFirst(ClaimTypes.NameIdentifier)?.Value;
 
-                var shoppingCartVM = new ShoppingCartVM
-                {
-                    ShoppingCartList = shoppingCartList,
-                    OrderHeader = new OrderHeaderAddEditRequestModel { OrderTotal = orderTotal }
-                };
-
-                return View(shoppingCartVM);
-            }
-            catch (Exception)
-            {
-                return View("Error");
-            }
-        }
-
-        public IActionResult Summary()
-        {
-            var userId = GetCurrentUserId();
             var shoppingCartList = shoppingCartsService.GetCartItems(userId);
-            var orderTotal = CalculateOrderTotal(shoppingCartList);
-            var user = applicationUsersService.GetApplicationUser(userId);
 
             var shoppingCartVM = new ShoppingCartVM
             {
                 ShoppingCartList = shoppingCartList,
-                OrderHeader = new OrderHeaderAddEditRequestModel { OrderTotal = orderTotal }
+                OrderHeader = new OrderHeaderAddEditRequestModel()
             };
+
+            foreach (var cart in shoppingCartVM.ShoppingCartList)
+            {
+                if (cart.Product != null)
+                {
+                    var productImages = productImagesService.GetProductImagesByProductId(cart.Product.Id);
+                    if (productImages != null)
+                    {
+                        cart.Product.ProductImages = productImages.ToList();
+                    }
+                    cart.Price = GetPriceBasedOnQuantity(cart);
+                    shoppingCartVM.OrderHeader.OrderTotal += (cart.Price * cart.Count);
+                }
+            }
+
+            return View(shoppingCartVM);
+        }
+
+        [HttpGet]
+        public IActionResult Summary()
+        {
+            var claimsIdentity = (ClaimsIdentity)User.Identity;
+            var userId = claimsIdentity.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+
+            var shoppingCartList = shoppingCartsService.GetCartItems(userId);
+
+            var shoppingCartVM = new ShoppingCartVM
+            {
+                ShoppingCartList = shoppingCartList,
+                OrderHeader = new OrderHeaderAddEditRequestModel()
+            };
+
+            var user = applicationUsersService.GetApplicationUserById(userId);
 
             if (user != null)
             {
+                shoppingCartVM.OrderHeader.ApplicationUser = user;
                 shoppingCartVM.OrderHeader.Name = user.Name;
                 shoppingCartVM.OrderHeader.PhoneNumber = user.PhoneNumber;
                 shoppingCartVM.OrderHeader.StreetAddress = user.StreetAddress;
                 shoppingCartVM.OrderHeader.City = user.City;
                 shoppingCartVM.OrderHeader.State = user.State;
                 shoppingCartVM.OrderHeader.PostalCode = user.PostalCode;
+            }
+
+            foreach (var cart in shoppingCartVM.ShoppingCartList)
+            {
+                cart.Price = GetPriceBasedOnQuantity(cart);
+                shoppingCartVM.OrderHeader.OrderTotal += (cart.Price * cart.Count);
             }
 
             return View(shoppingCartVM);
@@ -75,7 +92,9 @@ namespace BookStore.Areas.Customer.Controllers
         [ActionName("Summary")]
         public IActionResult SummaryPOST()
         {
-            var userId = GetCurrentUserId();
+            var claimsIdentity = (ClaimsIdentity)User.Identity;
+            var userId = claimsIdentity.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+
             var shoppingCartVM = new ShoppingCartVM();
             shoppingCartsService.ProcessOrder(userId, shoppingCartVM);
             return RedirectToAction(nameof(OrderConfirmation), new { id = shoppingCartVM.OrderHeader.Id });
@@ -108,11 +127,10 @@ namespace BookStore.Areas.Customer.Controllers
             return RedirectToAction(nameof(Index));
         }
 
-        [HttpPost]
-        [ValidateAntiForgeryToken]
         public IActionResult Remove(int cartId)
         {
             var cartFromDb = shoppingCartsService.Get(u => u.Id == cartId);
+
             if (cartFromDb == null)
             {
                 return NotFound();
@@ -121,6 +139,7 @@ namespace BookStore.Areas.Customer.Controllers
             shoppingCartsService.Delete(cartId);
 
             var userId = httpContextAccessor.HttpContext.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+
             if (userId != null)
             {
                 var remainingCount = shoppingCartsService.GetCartItemCount(userId);
@@ -130,44 +149,21 @@ namespace BookStore.Areas.Customer.Controllers
             return RedirectToAction(nameof(Index));
         }
 
-        private string GetCurrentUserId()
+        public double GetPriceBasedOnQuantity(BLL.DTO.ShoppingCart shoppingCart)
         {
-            var claimsIdentity = (ClaimsIdentity)User.Identity;
-            return claimsIdentity.FindFirst(ClaimTypes.NameIdentifier).Value;
-        }
-
-        private double CalculateOrderTotal(IEnumerable<BLL.DTO.ShoppingCart> shoppingCartList)
-        {
-            double orderTotal = 0.0;
-            foreach (var cart in shoppingCartList)
+            if (shoppingCart.Count <= 50)
             {
-                if (cart.Product != null)
-                {
-                    cart.Price = shoppingCartsService.GetPriceBasedOnQuantity(cart);
-                    orderTotal += (cart.Price * cart.Count);
-                }
-                else
-                {
-                    Console.WriteLine($"Warning: Product is null for ShoppingCart with ID {cart.Id}. Skipping item.");
-                }
+                return shoppingCart.Product.Price;
             }
-            return orderTotal;
-        }
-        private void PopulateProductImages(IEnumerable<BLL.DTO.ShoppingCart> shoppingCartList)
-        {
-            foreach (var cart in shoppingCartList)
+            else
             {
-                if (cart.Product != null)
+                if (shoppingCart.Count <= 100)
                 {
-                    var productImages = productImagesService.GetAllProductImages()
-                        .Where(u => u.ProductId != null && u.ProductId == cart.Product.Id)
-                        .ToList();
-
-                    cart.Product.ProductImages = productImages;
+                    return shoppingCart.Product.Price50;
                 }
                 else
                 {
-                    Console.WriteLine($"Warning: Product is null for ShoppingCart with ID {cart.Id}. Unable to populate images.");
+                    return shoppingCart.Product.Price100;
                 }
             }
         }

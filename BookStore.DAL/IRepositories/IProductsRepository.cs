@@ -16,5 +16,6 @@ namespace BookStore.DAL.IRepositories
         void Add(Product product);
         void Remove(Product product);
         void RemoveRange(IEnumerable<Product> products);
+        DAL.Entities.Product GetProductById(int productId);
     }
 }

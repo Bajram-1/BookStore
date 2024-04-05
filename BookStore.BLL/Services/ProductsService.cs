@@ -303,5 +303,52 @@ namespace BookStore.BLL.Services
         {
             return productsRepository.Get(u => u.Id == productId, includeProperties);
         }
+
+        public double CalculateTotalPrice(DAL.Entities.ShoppingCart shoppingCart)
+        {
+            // Fetch the product details
+            var product = shoppingCart.Product;
+
+            if (product == null)
+            {
+                throw new Exception("Product not found in shopping cart");
+            }
+
+            // Calculate the total price based on the quantity
+            double totalPrice = shoppingCart.Count switch
+            {
+                var count when count <= 50 => product.Price * count,
+                var count when count <= 100 => product.Price50 * count,
+                var count when count > 100 => product.Price100 * count
+            };
+
+            return totalPrice;
+        }
+
+        public DAL.Entities.Product GetProductById(int productId)
+        {
+            var product = productsRepository.GetProductById(productId);
+
+            if (product == null)
+            {
+                throw new Exception("Product not found");
+            }
+
+            return new DAL.Entities.Product
+            {
+                Id = product.Id,
+                Title = product.Title,
+                ISBN = product.ISBN,
+                Price = product.Price,
+                Author = product.Author,
+                Category = product.Category,
+                CategoryId = product.CategoryId,
+                Description = product.Description,
+                ListPrice = product.ListPrice,
+                Price50 = product.Price50,
+                Price100 = product.Price100,
+                ProductImages = product.ProductImages,
+            };
+        }
     }
 }

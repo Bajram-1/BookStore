@@ -25,6 +25,7 @@ namespace BookStore.BLL.Services
         private readonly IOrderDetailsService _orderDetailsService;
         private readonly IOrderHeadersRepository _orderHeadersRepository;
         private readonly IShoppingCartsRepository _shoppingCartsRepository;
+        private readonly IProductsService _productsService;
         private readonly IEmailSender _emailSender;
         private readonly IUnitOfWork _unitOfWork;
         private readonly IHttpContextAccessor _httpContextAccessor;
@@ -32,6 +33,7 @@ namespace BookStore.BLL.Services
         public ShoppingCartsService(IApplicationUsersService applicationUsersService,
                                     IOrderHeadersService orderHeadersService,
                                     IOrderDetailsService orderDetailsService,
+                                    IProductsService productsService,
                                     IOrderHeadersRepository orderHeadersRepository,
                                     IShoppingCartsRepository shoppingCartsRepository,
                                     IEmailSender emailSender,
@@ -41,6 +43,7 @@ namespace BookStore.BLL.Services
             _applicationUsersService = applicationUsersService;
             _orderHeadersService = orderHeadersService;
             _orderDetailsService = orderDetailsService;
+            _productsService = productsService;
             _orderHeadersRepository = orderHeadersRepository;
             _shoppingCartsRepository = shoppingCartsRepository;
             _emailSender = emailSender;
@@ -70,16 +73,27 @@ namespace BookStore.BLL.Services
         {
             var shoppingCart = new DAL.Entities.ShoppingCart
             {
+                Id = model.Id,
                 ApplicationUserId = model.ApplicationUserId,
                 ProductId = model.ProductId,
-                Count = model.Count
+                Count = model.Count,
+                Price = model.Price
             };
+
+            var productWithPrice = _productsService.GetProductById(model.ProductId);
+            if (productWithPrice == null)
+            {
+                throw new Exception("Product not found");
+            }
+
+            shoppingCart.Price = productWithPrice.Price * model.Count;
 
             _shoppingCartsRepository.Add(shoppingCart);
             _unitOfWork.SaveChanges();
 
             return GetById(shoppingCart.Id);
         }
+
 
         private DTO.ShoppingCart GetById(int id)
         {
@@ -119,13 +133,15 @@ namespace BookStore.BLL.Services
             var result = new List<DTO.ShoppingCart>();
             foreach (var shoppingCartItem in dbShoppingCartItems)
             {
+
                 result.Add(new DTO.ShoppingCart
                 {
                     Id = shoppingCartItem.Id,
                     ApplicationUserId = shoppingCartItem.ApplicationUserId,
                     ProductId = shoppingCartItem.ProductId,
-                    Count = shoppingCartItem.Count
-                });
+                    Count = shoppingCartItem.Count,
+                    Price = shoppingCartItem.Product.Price
+            });
             }
             return result;
         }
@@ -361,22 +377,22 @@ namespace BookStore.BLL.Services
             _unitOfWork.SaveChanges();
         }
 
-        public double GetPriceBasedOnQuantity(DTO.ShoppingCart shoppingCart)
+        public double GetPriceBasedOnQuantity(BLL.DTO.ShoppingCart shoppingCart)
         {
-            if (shoppingCart.Product != null)
+            if (shoppingCart.Count <= 50)
             {
-                if (shoppingCart.Count <= 50)
-                    return shoppingCart.Product.Price;
-                else if (shoppingCart.Count <= 100)
-                    return shoppingCart.Product.Price50;
-                else
-                    return shoppingCart.Product.Price100;
+                return shoppingCart.Product.Price;
             }
             else
             {
-                // Handle the case where shoppingCart.Product is null.
-                // You may choose to throw an exception, return a default value, or handle it differently based on your requirements.
-                throw new Exception("Product is null.");
+                if (shoppingCart.Count <= 100)
+                {
+                    return shoppingCart.Product.Price50;
+                }
+                else
+                {
+                    return shoppingCart.Product.Price100;
+                }
             }
         }
     }
