@@ -34,10 +34,6 @@ namespace BookStore.DAL.DbConfig
             builder.HasOne(od => od.OrderHeader)
                 .WithMany(oh => oh.OrderDetails)
                 .HasForeignKey(od => od.OrderHeaderId);
-
-            //builder.HasOne(od => od.Product)
-            //    .WithMany(p => p.OrderDetails)
-            //    .HasForeignKey(od => od.ProductId);
         }
     }
 }
