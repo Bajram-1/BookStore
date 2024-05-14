@@ -80,8 +80,7 @@ namespace BookStore.DAL.DbConfig
 
             builder.HasOne(oh => oh.ApplicationUser)
              .WithMany(au => au.OrderHeaders)
-             .HasForeignKey(oh => oh.ApplicationUserId)
-             .IsRequired();
+             .HasForeignKey(oh => oh.ApplicationUserId);
         }
     }
 }
