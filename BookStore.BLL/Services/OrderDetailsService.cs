@@ -16,105 +16,65 @@ namespace BookStore.BLL.Services
 {
     public class OrderDetailsService(IOrderDetailsRepository orderDetailsRepository, IUnitOfWork unitOfWork) : IOrderDetailsService
     {
-        public DTO.OrderDetail GetAll(Func<DTO.OrderDetail, bool> predicate, string includeProperties = "")
+        public async Task<IEnumerable<DTO.OrderDetail>> GetAllByOrderHeaderIdAsync(Expression<Func<DAL.Entities.OrderDetail, bool>> predicate, string includeProperties = "Product")
         {
-            IQueryable<DAL.Entities.OrderDetail> query = (IQueryable<DAL.Entities.OrderDetail>)orderDetailsRepository.GetAll();
-
-            if (!string.IsNullOrEmpty(includeProperties))
+            return await Task.Run(async () =>
             {
-                foreach (var includeProperty in includeProperties.Split(new char[] { ',' }, StringSplitOptions.RemoveEmptyEntries))
+                IQueryable<DAL.Entities.OrderDetail> query = (await orderDetailsRepository.GetAllAsync(predicate, includeProperties: "Product")).AsQueryable();
+
+                if (!string.IsNullOrEmpty(includeProperties))
                 {
-                    query = query.Include(includeProperty);
+                    foreach (var includeProperty in includeProperties.Split(new char[] { ',' }, StringSplitOptions.RemoveEmptyEntries))
+                    {
+                        query = query.Include(includeProperty);
+                    }
                 }
-            }
 
-            return query.Select(o => new DTO.OrderDetail
-            {
-                Id = o.Id,
-                OrderHeaderId = o.OrderHeaderId,
-                ProductId = o.ProductId,
-                Price = o.Price,
-                Count = o.Count
-            }).FirstOrDefault(predicate);
+                var filteredQuery = query.Where(predicate);
+
+                var result = filteredQuery.Select(o => new DTO.OrderDetail
+                {
+                    Id = o.Id,
+                    ProductId = o.ProductId,
+                    OrderHeaderId = o.OrderHeaderId,
+                    Price = o.Price,
+                    Count = o.Count,
+                    Product = o.Product != null ? new DTO.Product
+                    {
+                        Id = o.Product.Id,
+                        Title = o.Product.Title,
+                        Description = o.Product.Description,
+                        Author = o.Product.Author,
+                        ISBN = o.Product.ISBN,
+                        ListPrice = o.Product.ListPrice,
+                        Price = o.Product.Price,
+                        Price50 = o.Product.Price50,
+                        Price100 = o.Product.Price100
+                    } : new DTO.Product()
+                }).ToList();
+
+                return (IEnumerable<DTO.OrderDetail>)result;
+            });
         }
 
-        public DTO.OrderDetail GetOrderDetailById(int id)
+        public async Task AddOrderDetailAsync(BLL.DTO.OrderDetail orderDetail, int orderHeaderId)
         {
-            var orderDetail = orderDetailsRepository.Get(o => o.Id == id);
-
             if (orderDetail == null)
             {
-                throw new Exception("Order details not found");
+                return;
             }
 
-            return new DTO.OrderDetail
-            {
-                Id = orderDetail.Id,
-                ProductId = orderDetail.ProductId,
-                OrderHeaderId = orderDetail.OrderHeaderId,
-                Price = orderDetail.Price,
-                Count = orderDetail.Count
-            };
-        }
-
-        public void AddOrderDetail(DAL.Entities.OrderDetail orderDetail)
-        {
             var orderDetails = new DAL.Entities.OrderDetail
             {
                 Id = orderDetail.Id,
                 Price = orderDetail.Price,
                 Count = orderDetail.Count,
-                OrderHeaderId = orderDetail.OrderHeaderId,
-                ProductId = orderDetail.ProductId
+                ProductId = orderDetail.ProductId,
+                OrderHeaderId = orderHeaderId,
             };
 
-            orderDetailsRepository.Add(orderDetails);
-            unitOfWork.SaveChanges();
-        }
-
-        public void UpdateOrderDetail(OrderDetailsAddEditRequestModel orderDetail)
-        {
-            var orderDetails = orderDetailsRepository.Get(s => s.Id == orderDetail.Id);
-
-            if (orderDetailsRepository == null)
-            {
-                throw new Exception("Order Details not found");
-            }
-
-            orderDetails.Id = orderDetail.Id;
-            orderDetails.Price = orderDetail.Price;
-            orderDetails.Count = orderDetail.Count;
-            orderDetails.OrderHeaderId = orderDetail.OrderHeaderId;
-            orderDetails.ProductId = orderDetail.ProductId;
-
-            orderDetailsRepository.Update(orderDetails);
-            unitOfWork.SaveChanges();
-        }
-
-        public void DeleteOrderDetail(int id)
-        {
-            var orderDetail = orderDetailsRepository.Get(o => o.Id == id);
-
-            if (orderDetail == null)
-            {
-                throw new Exception("Order Details not found.");
-            }
-
-            orderDetailsRepository.Remove(orderDetail);
-            unitOfWork.SaveChanges();
-        }
-
-        public void RemoveRange()
-        {
-            var orderDetail = orderDetailsRepository.GetAll().ToList();
-
-            if (orderDetail == null)
-            {
-                throw new Exception("Order Details not found");
-            }
-
-            orderDetailsRepository.RemoveRange(orderDetail);
-            unitOfWork.SaveChanges();
+            await orderDetailsRepository.CreateAsync(orderDetails);
+            await unitOfWork.SaveChangesAsync();
         }
     }
 }

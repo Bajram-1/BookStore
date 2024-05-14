@@ -216,11 +216,11 @@ namespace BookStore.Areas.Identity.Pages.Account
             return Page();
         }
 
-        private ApplicationUser CreateUser()
+        private DAL.Entities.ApplicationUser CreateUser()
         {
             try
             {
-                return Activator.CreateInstance<ApplicationUser>();
+                return Activator.CreateInstance<DAL.Entities.ApplicationUser>();
             }
             catch
             {

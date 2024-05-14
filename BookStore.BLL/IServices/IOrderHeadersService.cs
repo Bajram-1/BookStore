@@ -4,6 +4,7 @@ using BookStore.DAL.Entities;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Linq.Expressions;
 using System.Text;
 using System.Threading.Tasks;
 
@@ -11,15 +12,12 @@ namespace BookStore.BLL.IServices
 {
     public interface IOrderHeadersService
     {
-        IEnumerable<DTO.OrderHeader> GetAllOrderDetails();
-        DTO.OrderHeader GetOrderDetailById(int id);
-        void Add(OrderHeaderAddEditRequestModel model);
-        void Update(OrderHeaderAddEditRequestModel model);
-        void Delete(int id);
-        void RemoveRange(IEnumerable<DTO.OrderHeader> orderHeaders);
-        void UpdateStatus(int id, string orderStatus, string? paymentStatus = null);
-        void UpdateStripePaymentID(int id, string sessionId, string paymentIntentId);
-        void UpdateShippingInfo(int orderId, string carrier, string trackingNumber);
-        DTO.OrderHeader Get(Func<DTO.OrderHeader, bool> value, string includeProperties);
+        Task<IEnumerable<DTO.OrderHeader>> GetAllAsync(Expression<Func<DAL.Entities.OrderHeader, bool>>? filter = null, string includeProperties = null);
+        Task<BLL.DTO.OrderHeader> AddAsync(BLL.DTO.OrderHeader model);
+        Task UpdateAsync(BLL.DTO.OrderHeader model);
+        Task UpdateStatusAsync(int id, string orderStatus, string? paymentStatus = null);
+        Task UpdateStripePaymentID(int id, string sessionId, string paymentIntentId);
+        Task<DTO.OrderHeader> GetAsync(Expression<Func<DAL.Entities.OrderHeader, bool>> predicate, string includeProperties = "ApplicationUser");
+        Task<DTO.OrderHeader> GetOrderHeaderAsync(Expression<Func<DAL.Entities.OrderHeader, bool>> predicate);
     }
 }

@@ -9,15 +9,13 @@ using System.Threading.Tasks;
 
 namespace BookStore.DAL.Entities
 {
-    public class ShoppingCart
+    public class ShoppingCart : BaseEntityWithKey
     {
-        public int Id { get; set; }
         public int ProductId { get; set; }
         public Product Product { get; set; }
         public int Count { get; set; }
         public string ApplicationUserId { get; set; }
-        public ApplicationUser ApplicationUser { get; set; }
-        [NotMapped]
-        public double Price { get; set; }
+        public ApplicationUser ApplicationUser { get; set; }       
+        public decimal Price { get; set; }
     }
 }

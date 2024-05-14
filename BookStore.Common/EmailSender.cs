@@ -1,10 +1,12 @@
-﻿using Microsoft.AspNetCore.Identity.UI.Services;
+﻿using Mailjet.Client;
+using Mailjet.Client.Resources;
+using Microsoft.AspNetCore.Identity.UI.Services;
 using Microsoft.Extensions.Configuration;
-using SendGrid;
-using SendGrid.Helpers.Mail;
+using Newtonsoft.Json.Linq;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Net;
 using System.Net.Mail;
 using System.Text;
 using System.Threading.Tasks;
@@ -13,24 +15,34 @@ namespace BookStore.Common
 {
     public class EmailSender : IEmailSender
     {
-        public string SendGridSecret { get; set; }
+        private readonly IConfiguration _config;
 
-        public EmailSender(IConfiguration _config)
+        public EmailSender(IConfiguration config)
         {
-            SendGridSecret = _config.GetValue<string>("SendGrid:SecretKey");
+            _config = config;
         }
 
-        public Task SendEmailAsync(string email, string subject, string htmlMessage)
+        public async Task SendEmailAsync(string email, string subject, string htmlMessage)
         {
-            //logic to send email
+            string apiKey = _config.GetValue<string>("MailJet:ApiKey");
+            string apiSecret = _config.GetValue<string>("MailJet:ApiSecret");
 
-        var client = new SendGridClient(SendGridSecret);
+            var client = new SmtpClient("in.mailjet.com", 587)
+            {
+                Credentials = new NetworkCredential(apiKey, apiSecret),
+                EnableSsl = true
+            };
 
-            var from = new EmailAddress("admin@user.com", "Book Store");
-            var to = new EmailAddress(email);
-            var message = MailHelper.CreateSingleEmail(from, to, subject, "", htmlMessage);
+            var mailMessage = new MailMessage
+            {
+                From = new MailAddress("bajram.shehi98@gmail.com"),
+                Subject = subject,
+                Body = htmlMessage,
+                IsBodyHtml = true
+            };
+            mailMessage.To.Add(email);
 
-            return client.SendEmailAsync(message);
+            await client.SendMailAsync(mailMessage);
         }
     }
 }

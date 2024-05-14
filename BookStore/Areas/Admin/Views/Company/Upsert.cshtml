@@ -16,32 +16,32 @@
                     <div class="border p-3">
                         <div class="form-floating py-2 col-12">
                             <input asp-for="Name" class="form-control border-0 shadow" />
-                            <label asp-for="Name" class="ms-2"></label>
+                            <label asp-for="Name" class="ms-2">Name</label>
                             <span asp-validation-for="Name" class="text-danger"></span>
                         </div>
                         <div class="form-floating py-2 col-12">
                             <input asp-for="PhoneNumber" class="form-control border-0 shadow" />
-                            <label asp-for="PhoneNumber" class="ms-2"></label>
+                            <label asp-for="PhoneNumber" class="ms-2">Phone Number</label>
                             <span asp-validation-for="PhoneNumber" class="text-danger"></span>
                         </div>
                         <div class="form-floating py-2 col-12">
                             <input asp-for="StreetAddress" class="form-control border-0 shadow" />
-                            <label asp-for="StreetAddress" class="ms-2"></label>
+                            <label asp-for="StreetAddress" class="ms-2">Street Address</label>
                             <span asp-validation-for="StreetAddress" class="text-danger"></span>
                         </div>
                         <div class="form-floating py-2 col-12">
                             <input asp-for="City" class="form-control border-0 shadow" />
-                            <label asp-for="City" class="ms-2"></label>
+                            <label asp-for="City" class="ms-2">City</label>
                             <span asp-validation-for="City" class="text-danger"></span>
                         </div>
                         <div class="form-floating py-2 col-12">
                             <input asp-for="State" class="form-control border-0 shadow" />
-                            <label asp-for="State" class="ms-2"></label>
+                            <label asp-for="State" class="ms-2">State</label>
                             <span asp-validation-for="State" class="text-danger"></span>
                         </div>
                         <div class="form-floating py-2 col-12">
-                            <input asp-for="PostalCode" class="form-control border-0 shadow" />
-                            <label asp-for="PostalCode" class="ms-2"></label>
+                            <input asp-for="PostalCode" class="form-control border-0 shadow" data-bs-toggle="tooltip" data-bs-placement="right" />
+                            <label asp-for="PostalCode" class="ms-2">Postal Code</label>
                             <span asp-validation-for="PostalCode" class="text-danger"></span>
                         </div>
 
@@ -80,7 +80,20 @@
             plugins: 'anchor autolink charmap codesample emoticons lists table visualblocks wordcount linkchecker',
             toolbar: 'undo redo | blocks fontfamily fontsize | bold italic underline strikethrough | align lineheight | numlist bullist indent outdent',
         });
+
+        document.addEventListener("DOMContentLoaded", function () {
+            const postalCodeInput = document.getElementById('PostalCode');
+            postalCodeInput.addEventListener('input', function (e) {
+                const regex = new RegExp('^[A-Za-z0-9\\s\\-]{3,10}$');
+                if (!regex.test(e.target.value)) {
+                    e.target.setCustomValidity('Invalid postal code. Must be 3-10 characters, including letters, digits, spaces, or hyphens.');
+                }
+            });
+
+            $('[data-bs-toggle="tooltip"]').tooltip();
+        });
     </script>
+
     @{
         <partial name="_ValidationScriptsPartial" />
     }

@@ -9,14 +9,13 @@ using System.Threading.Tasks;
 
 namespace BookStore.DAL.Entities
 {
-    public class OrderHeader
+    public class OrderHeader : BaseEntityWithKey<int>
     {
-        public int Id { get; set; }
         public string ApplicationUserId { get; set; }
         public ApplicationUser ApplicationUser { get; set; }
         public DateTime OrderDate { get; set; }
         public DateTime ShippingDate { get; set; }
-        public double OrderTotal { get; set; }
+        public decimal OrderTotal { get; set; }
         public string? OrderStatus { get; set; }
         public string? PaymentStatus { get; set; }
         public string? TrackingNumber { get; set; }
@@ -31,7 +30,6 @@ namespace BookStore.DAL.Entities
         public string State { get; set; }
         public string PostalCode { get; set; }
         public string Name { get; set; }
-        public string StripePaymentId { get; set; }
-        public string Status { get; set; }
+        public virtual ICollection<OrderDetail> OrderDetails { get; set; } = new List<OrderDetail>();
     }
 }

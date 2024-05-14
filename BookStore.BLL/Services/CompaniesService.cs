@@ -14,29 +14,24 @@ namespace BookStore.BLL.Services
 {
     public class CompaniesService(ICompaniesRepository companiesRepository, IUnitOfWork unitOfWork) : ICompaniesService
     {
-        public IEnumerable<DTO.Company> GetAllCompanies()
+        public async Task<IEnumerable<DTO.Company>> GetAllAsync()
         {
-            var dbCompanies = companiesRepository.GetAll();
-            var result = new List<DTO.Company>();
-            foreach (var x in dbCompanies)
+            var dbCompanies = await companiesRepository.GetAllAsync();
+            return dbCompanies.Select(x => new DTO.Company
             {
-                result.Add(new DTO.Company
-                {
-                    Id = x.Id,
-                    Name = x.Name,
-                    StreetAddress = x.StreetAddress,
-                    City = x.City,
-                    State = x.State,
-                    PhoneNumber = x.PhoneNumber,
-                    PostalCode = x.PostalCode
-                });
-            }
-            return result;
+                Id = x.Id,
+                Name = x.Name,
+                StreetAddress = x.StreetAddress,
+                City = x.City,
+                State = x.State,
+                PhoneNumber = x.PhoneNumber,
+                PostalCode = x.PostalCode
+            }).ToList();
         }
 
-        public CompanyAddEditRequestModel GetCompanyById(int id)
+        public async Task<CompanyAddEditRequestModel> GetCompanyByIdAsync(int id)
         {
-            var dbCompany = companiesRepository.GetById(id) ?? throw new Exception("Company not found");
+            var dbCompany = await companiesRepository.GetByIdAsync(id) ?? throw new Exception("Company not found");
             return new CompanyAddEditRequestModel
             {
                 Id = dbCompany.Id,
@@ -49,13 +44,13 @@ namespace BookStore.BLL.Services
             };
         }
 
-        public void AddCompany(CompanyAddEditRequestModel companyObj)
+        public async Task AddCompanyAsync(CompanyAddEditRequestModel companyObj)
         {
-            var existByName = GetByName(companyObj.Name);
+            var existByName = await GetByNameAsync(companyObj.Name);
 
             if (existByName != null)
             {
-                throw new Exception("Another category with this name already exists");
+                throw new Exception("Another company with this name already exists");
             }
 
             var company = new DAL.Entities.Company
@@ -68,20 +63,20 @@ namespace BookStore.BLL.Services
                 PostalCode = companyObj.PostalCode
             };
 
-            companiesRepository.Add(company);
-            unitOfWork.SaveChanges();
+            await companiesRepository.CreateAsync(company);
+            await unitOfWork.SaveChangesAsync();
         }
 
-        public void UpdateCompany(int id, CompanyAddEditRequestModel model)
+        public async Task UpdateCompanyAsync(int id, CompanyAddEditRequestModel model)
         {
-            var existsByName = GetByName(model.Name);
+            var existsByName = await GetByNameAsync(model.Name);
 
             if (existsByName != null && existsByName.Id != id)
             {
-                throw new Exception("Another category with this name already exists");
+                throw new Exception("Another company with this name already exists");
             }
 
-            var company = companiesRepository.GetById(id);
+            var company = await companiesRepository.GetByIdAsync(id) ?? throw new Exception("Company not found");
 
             company.Name = model.Name;
             company.PhoneNumber = model.PhoneNumber;
@@ -90,34 +85,23 @@ namespace BookStore.BLL.Services
             company.State = model.State;
             company.PostalCode = model.PostalCode;
 
-            unitOfWork.SaveChanges();
+            await unitOfWork.SaveChangesAsync();
         }
 
-        public void DeleteCompany(int id)
+        public async Task DeleteCompanyAsync(int id)
         {
-            var companyToBeDeleted = companiesRepository.Get(u => u.Id == id);
+            var companyToBeDeleted = await companiesRepository.GetByIdAsync(id);
 
             if (companyToBeDeleted != null)
             {
-                companiesRepository.Remove(companyToBeDeleted);
-                unitOfWork.SaveChanges();
+                await companiesRepository.DeleteAsync(companyToBeDeleted);
+                await unitOfWork.SaveChangesAsync();
             }
         }
 
-        public void DeleteCompanies()
+        public async Task<DTO.Company> GetByNameAsync(string name)
         {
-            var companyToBeDeleted = companiesRepository.GetAll();
-
-            if (companyToBeDeleted != null)
-            {
-                companiesRepository.RemoveRange(companyToBeDeleted);
-                unitOfWork.SaveChanges();
-            }
-        }
-
-        public DTO.Company GetByName(string name)
-        {
-            var dbCategory = companiesRepository.GetByName(name);
+            var dbCategory = await companiesRepository.GetByNameAsync(name);
             if (dbCategory == null)
             {
                 return null;

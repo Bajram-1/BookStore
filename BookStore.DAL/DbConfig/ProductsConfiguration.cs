@@ -17,6 +17,10 @@ namespace BookStore.DAL.DbConfig
 
             builder.HasKey(p => p.Id);
 
+            builder.Property(e => e.Id)
+                   .HasColumnName("Id")
+                   .ValueGeneratedOnAdd();
+
             builder.Property(p => p.Title)
                 .IsRequired();
 
@@ -52,6 +56,10 @@ namespace BookStore.DAL.DbConfig
             builder.HasMany(p => p.ProductImages)
                 .WithOne(pi => pi.Product)
                 .HasForeignKey("ProductId");
+
+            //builder.HasMany(p => p.OrderDetails)
+            //   .WithOne(od => od.Product)
+            //   .HasForeignKey(od => od.ProductId);
         }
     }
 }

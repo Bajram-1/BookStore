@@ -3,11 +3,12 @@ using System.Linq.Expressions;
 
 namespace BookStore.DAL.IRepositories
 {
-    public interface ICategoriesRepository
+    public interface ICategoriesRepository : IBaseRepository<Category, int>
     {
-        void Create(Category category);
-        void Delete(int id);
-        Category GetById(int id);
-        IEnumerable<Category> GetAll();
+        Task DeleteAsync(int id);
+        Task<Category> GetByIdAsync(int id);
+        Task<Category> GetByNameAsync(string name);
+        Task<IEnumerable<Category>> GetAllAsync();
+        Task<int> GetActualDisplayOrderAsync();
     }
 }

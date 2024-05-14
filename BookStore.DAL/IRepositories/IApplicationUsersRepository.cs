@@ -5,14 +5,10 @@ namespace BookStore.DAL.IRepositories
 {
     public interface IApplicationUsersRepository
     {
-        public void Update(ApplicationUser applicationUser);
-        IEnumerable<ApplicationUser> GetAll(Expression<Func<ApplicationUser, bool>>? filter = null, string? includeProperties = null);
-        ApplicationUser Get(Expression<Func<ApplicationUser, bool>> filter, string? includeProperties = null, bool tracked = false);
-        void Add(ApplicationUser applicationUser);
-        void Remove(ApplicationUser applicationUser);
-        void RemoveRange(IEnumerable<ApplicationUser> applicationUsers);
-        ApplicationUser GetById(string id);
-
-        ApplicationUser GetUserWithCompany(string userId);
+        Task UpdateAsync(ApplicationUser applicationUser);
+        Task<ApplicationUser> GetAsync(Expression<Func<ApplicationUser, bool>> filter, string includeProperties = null, bool tracked = false);
+        Task<IEnumerable<ApplicationUser>> GetAllAsync(Expression<Func<ApplicationUser, bool>> filter = null, string includeProperties = null);
+        Task<ApplicationUser> GetByIdAsync(string userId);
+        Task<ApplicationUser> GetUserWithCompanyAsync(string userId);
     }
 }

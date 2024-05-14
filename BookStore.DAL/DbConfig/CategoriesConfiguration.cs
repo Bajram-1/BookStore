@@ -14,14 +14,18 @@ namespace BookStore.DAL.DbConfig
         public void Configure(EntityTypeBuilder<Category> builder)
         {
             builder.ToTable("Categories");
+            
             builder.HasKey(c => c.Id);
+            
             builder.Property(c => c.Name)
                    .HasMaxLength(100)
                    .HasColumnName("Name")
                    .IsRequired();
+
             builder.Property(c => c.Description)
                    .HasMaxLength(500)
                    .HasColumnName("Description");
+
             builder.Property(c => c.DisplayOrder)
                    .HasColumnName("DisplayOrder")
                    .IsRequired();

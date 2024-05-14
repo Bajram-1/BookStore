@@ -8,15 +8,14 @@ using System.Text;
 using System.Threading.Tasks;
 
 namespace BookStore.BLL.IServices
-{
+{ 
     public interface ICompaniesService
     {
-        IEnumerable<DTO.Company> GetAllCompanies();
-        CompanyAddEditRequestModel GetCompanyById(int id);
-        DTO.Company GetByName(string name);
-        void AddCompany(CompanyAddEditRequestModel companyObj);
-        void UpdateCompany(int id, CompanyAddEditRequestModel model);
-        void DeleteCompany(int id);
-        void DeleteCompanies();
+        Task<IEnumerable<DTO.Company>> GetAllAsync();
+        Task<CompanyAddEditRequestModel> GetCompanyByIdAsync(int id);
+        Task AddCompanyAsync(CompanyAddEditRequestModel companyObj);
+        Task UpdateCompanyAsync(int id, CompanyAddEditRequestModel model);
+        Task DeleteCompanyAsync(int id);
+        Task<DTO.Company> GetByNameAsync(string name);
     }
 }

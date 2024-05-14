@@ -8,14 +8,11 @@ using System.Threading.Tasks;
 
 namespace BookStore.DAL.IRepositories
 {
-    public interface IProductsRepository
+    public interface IProductsRepository : IBaseRepository<Product, int>
     {
-        void Update(Product product);
-        IEnumerable<Product> GetAll(Expression<Func<Product, bool>>? filter = null, string? includeProperties = null);
-        Product Get(Expression<Func<Product, bool>> filter, string? includeProperties = null, bool tracked = false);
-        void Add(Product product);
-        void Remove(Product product);
-        void RemoveRange(IEnumerable<Product> products);
-        DAL.Entities.Product GetProductById(int productId);
+        Task UpdateAsync(Product product);
+        Task<IEnumerable<Product>> GetAllAsync(Expression<Func<Product, bool>> filter = null, string includeProperties = null);
+        Task<Product> GetByISBNAsync(string isbn);
+        Task<Product> GetByTitleAndAuthorAsync(string title, string author);
     }
 }

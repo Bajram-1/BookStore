@@ -30,6 +30,8 @@
 
 	<ItemGroup>
 	  <Folder Include="Areas\Customer\Views\Cart\" />
+	  <Folder Include="wwwroot\images\products\product-1\" />
+	  <Folder Include="wwwroot\images\products\product-6\" />
 	</ItemGroup>
 
 </Project>

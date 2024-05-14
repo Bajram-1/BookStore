@@ -1,5 +1,7 @@
 ﻿using BookStore.BLL.IServices;
 using BookStore.BLL.Services;
+using BookStore.BLL.Services.Hosted;
+using BookStore.BLL.Services.Singletons;
 using Microsoft.Extensions.DependencyInjection;
 using System;
 using System.Collections.Generic;
@@ -13,6 +15,14 @@ namespace BookStore.BLL
     {
         public static void RegisterBLLServices(this IServiceCollection services)
         {
+            services.AddSingleton<ICacheService, CacheService>();
+            services.AddSingleton<ILoggerService, LoggerService>();
+
+            services.AddHostedService<AuditLogsHostedService>();
+
+            services.AddScoped<IAuditLogService, AuditLogService>();
+            services.AddScoped<IInternalAuditLogService, AuditLogService>();
+            services.AddScoped<IServiceManager, ServiceManager>();
             services.AddScoped<IApplicationUsersService, ApplicationUsersService>();
             services.AddScoped<ICategoriesService, CategoriesService>();
             services.AddScoped<ICompaniesService, CompaniesService>();

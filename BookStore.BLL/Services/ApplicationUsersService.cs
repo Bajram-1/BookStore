@@ -22,89 +22,12 @@ using Microsoft.AspNetCore.Http.HttpResults;
 namespace BookStore.BLL.Services
 {
     public class ApplicationUsersService(IApplicationUsersRepository applicationUsersRepository, ICompaniesRepository companiesRepository,
-                                         UserManager<IdentityUser> userManager, RoleManager<IdentityRole> roleManager, 
+                                         UserManager<IdentityUser> userManager, RoleManager<IdentityRole> roleManager,
                                          IUnitOfWork unitOfWork) : IApplicationUsersService
     {
-        public void AddApplicationUser(ApplicationUserAddEditRequestModel userObj)
+        public async Task<DTO.ApplicationUser> GetAsync(Expression<Func<DAL.Entities.ApplicationUser, bool>> filter)
         {
-            var user = new DAL.Entities.ApplicationUser
-            {
-                Id = userObj.Id,
-                City = userObj.City,
-                UserName = userObj.Name,
-                CompanyId = userObj.CompanyId,
-                PostalCode = userObj.PostalCode,
-                State = userObj.State,
-                Role = userObj.Role,
-                StreetAddress = userObj.StreetAddress,
-                PhoneNumber = userObj.PhoneNumber,
-                Email = userObj.Email
-            };
-
-            applicationUsersRepository.Add(user);
-            unitOfWork.SaveChanges();
-        }
-
-        public void RemoveApplicationUser(string userId)
-        {
-            var applicationUser = applicationUsersRepository.Get(u => u.Id == userId);
-
-            if (applicationUser != null)
-            {
-                applicationUsersRepository.Remove(applicationUser);
-                unitOfWork.SaveChanges();
-            }
-        }
-
-        public void UpdateApplicationUser(string id, ApplicationUserAddEditRequestModel userObj)
-        {
-            var user = applicationUsersRepository.GetById(id);
-
-            user.Id = userObj.Id;
-            user.City = userObj.City;
-            user.UserName = userObj.Name;
-            user.CompanyId = userObj.CompanyId;
-            user.PostalCode = userObj.PostalCode;
-            user.State = userObj.State;
-            user.Role = userObj.Role;
-            user.StreetAddress = userObj.StreetAddress;
-            user.PhoneNumber = userObj.PhoneNumber;
-            user.Email = userObj.Email;
-
-            unitOfWork.SaveChanges();
-        }
-
-        public IEnumerable<DAL.Entities.ApplicationUser> GetAllApplicationUsers(Expression<Func<DAL.Entities.ApplicationUser, bool>>? filter = null, string? includeProperties = null)
-        {
-            return applicationUsersRepository.GetAll(filter, includeProperties);
-        }
-
-        public DTO.ApplicationUser GetApplicationUserById(string userId)
-        {
-            var dbUser = applicationUsersRepository.GetById(userId) ?? throw new Exception("User not found");
-            return new DTO.ApplicationUser
-            {
-
-                Id = dbUser.Id,
-                City = dbUser.City,
-                Name = dbUser.Name,
-                CompanyId = dbUser.CompanyId,
-                PostalCode = dbUser.PostalCode,
-                State = dbUser.State,
-                StreetAddress = dbUser.StreetAddress,
-                PhoneNumber = dbUser.PhoneNumber,
-            };
-        }
-
-        public void RemoveRange(IEnumerable<DAL.Entities.ApplicationUser> applicationUsers)
-        {
-            applicationUsersRepository.RemoveRange(applicationUsers);
-            unitOfWork.SaveChanges();
-        }
-
-        public DTO.ApplicationUser Get(Expression<Func<DAL.Entities.ApplicationUser, bool>> filter)
-        {
-            var dbUser = applicationUsersRepository.Get(filter) ?? throw new Exception("User not found");
+            var dbUser = await applicationUsersRepository.GetAsync(filter) ?? throw new Exception("User not found");
             return new DTO.ApplicationUser
             {
                 Id = dbUser.Id,
@@ -120,39 +43,53 @@ namespace BookStore.BLL.Services
             };
         }
 
-        public RoleManagmentVM GetUserRoleManagement(string userId)
+        public async Task<RoleManagmentViewModel> GetUserRoleManagementAsync(string userId)
         {
-            var user = applicationUsersRepository.GetUserWithCompany(userId);
+            var userDAL = await applicationUsersRepository.GetUserWithCompanyAsync(userId);
 
-            var roleVM = new RoleManagmentVM
+            var userBLL = new BLL.DTO.ApplicationUser
             {
-                ApplicationUser = user,
+                Id = userDAL.Id,
+                UserName = userDAL.UserName,
+                Email = userDAL.Email,
+                CompanyId = userDAL.CompanyId,
+                City = userDAL.City,
+                Name = userDAL.Name,
+                PhoneNumber = userDAL.PhoneNumber,
+                PostalCode = userDAL.PostalCode,
+                Role = userDAL.Role,
+                State = userDAL.State,
+                StreetAddress = userDAL.StreetAddress
+            };
+
+            var roleVM = new RoleManagmentViewModel
+            {
+                ApplicationUser = userBLL,
                 RoleList = roleManager.Roles.Select(i => new SelectListItem
                 {
                     Text = i.Name,
                     Value = i.Name
-                }),
-                CompanyList = companiesRepository.GetAll().Select(i => new SelectListItem
+                }).ToList(),
+                CompanyList = (await companiesRepository.GetAllAsync()).Select(i => new SelectListItem
                 {
                     Text = i.Name,
                     Value = i.Id.ToString()
-                }),
+                }).ToList(),
             };
 
-            var userRole = userManager.GetRolesAsync(user).GetAwaiter().GetResult();
-            roleVM.ApplicationUser.Role = userRole.FirstOrDefault();
+            var userRoles = await userManager.GetRolesAsync(userDAL);
+            roleVM.ApplicationUser.Role = userRoles.FirstOrDefault();
 
             return roleVM;
         }
 
-        public bool ManageUserRole(RoleManagmentVM roleManagmentVM)
+        public async Task<bool> ManageUserRoleAsync(RoleManagmentViewModel roleManagmentVM)
         {
-            var applicationUser = applicationUsersRepository.GetById(roleManagmentVM.ApplicationUser.Id);
-            var oldRole = userManager.GetRolesAsync(applicationUser).GetAwaiter().GetResult().FirstOrDefault();
+            var applicationUser = await applicationUsersRepository.GetByIdAsync(roleManagmentVM.ApplicationUser.Id);
+            var oldRole = (await userManager.GetRolesAsync(applicationUser)).FirstOrDefault();
 
             if (roleManagmentVM.ApplicationUser.Role != oldRole)
             {
-                // A role was updated
                 if (roleManagmentVM.ApplicationUser.Role == StaticDetails.Role_Company)
                 {
                     applicationUser.CompanyId = roleManagmentVM.ApplicationUser.CompanyId;
@@ -162,43 +99,61 @@ namespace BookStore.BLL.Services
                     applicationUser.CompanyId = null;
                 }
 
-                userManager.RemoveFromRoleAsync(applicationUser, oldRole).GetAwaiter().GetResult();
-                userManager.AddToRoleAsync(applicationUser, roleManagmentVM.ApplicationUser.Role).GetAwaiter().GetResult();
+                await userManager.RemoveFromRoleAsync(applicationUser, oldRole);
+                await userManager.AddToRoleAsync(applicationUser, roleManagmentVM.ApplicationUser.Role);
             }
             else
             {
-                // No role change, but check for company change if applicable
                 if (oldRole == StaticDetails.Role_Company && applicationUser.CompanyId != roleManagmentVM.ApplicationUser.CompanyId)
                 {
                     applicationUser.CompanyId = roleManagmentVM.ApplicationUser.CompanyId;
                 }
             }
 
-            applicationUsersRepository.Update(applicationUser);
+            await applicationUsersRepository.UpdateAsync(applicationUser);
+            await unitOfWork.SaveChangesAsync();
             return true;
         }
 
-        public DTO.ApplicationUser GetApplicationUser(string userId)
+        public async Task<List<DAL.Entities.ApplicationUser>> GetAllUsersAsync()
         {
-            var user = applicationUsersRepository.Get(u => u.Id == userId);
+            var users = await unitOfWork.ApplicationUserRepository.GetAllAsync(includeProperties: "Company");
 
-            if (user == null)
+            foreach (var user in users)
             {
-                throw new Exception("User not found");
+                user.Role = (await userManager.GetRolesAsync(user)).FirstOrDefault();
+
+                if (user.Company == null)
+                {
+                    user.Company = new DAL.Entities.Company()
+                    {
+                        Name = ""
+                    };
+                }
             }
 
-            var users = new DTO.ApplicationUser
-            {
-                Id = user.Id,
-                Name = user.Name,
-                PhoneNumber = user.PhoneNumber,
-                StreetAddress = user.StreetAddress,
-                City = user.City,
-                State = user.State,
-                PostalCode = user.PostalCode
-            };
+            return users.ToList();
+        }
 
-            return users;
+        public async Task<bool> LockUnlockUserAsync(string userId)
+        {
+            var user = await unitOfWork.ApplicationUserRepository.GetAsync(u => u.Id == userId);
+
+            if (user == null)
+                return false;
+
+            if (user.LockoutEnd != null && user.LockoutEnd > DateTime.Now)
+            {
+                user.LockoutEnd = DateTime.Now;
+            }
+            else
+            {
+                user.LockoutEnd = DateTime.Now.AddYears(1000);
+            }
+
+            await unitOfWork.ApplicationUserRepository.UpdateAsync(user);
+            await unitOfWork.SaveChangesAsync();
+            return true;
         }
     }
 }

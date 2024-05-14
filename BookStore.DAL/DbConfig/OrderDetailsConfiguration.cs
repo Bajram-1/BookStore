@@ -24,18 +24,20 @@ namespace BookStore.DAL.DbConfig
                 .IsRequired();
 
             builder.Property(od => od.Count)
-                .IsRequired();
+                   .IsRequired()
+                   .HasDefaultValue(1);
 
             builder.Property(od => od.Price)
-                .IsRequired();
+                .IsRequired()
+                .HasColumnType("decimal(18,2)");
 
             builder.HasOne(od => od.OrderHeader)
-                .WithOne()
-                .HasForeignKey<OrderDetail>(od => od.OrderHeaderId);
+                .WithMany(oh => oh.OrderDetails)
+                .HasForeignKey(od => od.OrderHeaderId);
 
-            builder.HasOne(od => od.Product)
-                .WithOne()
-                .HasForeignKey<OrderDetail>(od => od.ProductId);
+            //builder.HasOne(od => od.Product)
+            //    .WithMany(p => p.OrderDetails)
+            //    .HasForeignKey(od => od.ProductId);
         }
     }
 }

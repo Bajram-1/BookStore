@@ -1,14 +1,69 @@
-﻿@model IEnumerable<BookStore.DAL.Entities.Product>
+﻿@model IEnumerable<BookStore.BLL.DTO.Product>
 
 <style>
     .h5 {
         font-size: 1.13rem;
     }
 
-    .footer[b-tqf8g8k84y]{
+    .footer[b-tqf8g8k84y] {
         line-height: 35px;
     }
 </style>
+
+<head>
+    <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.15.4/css/all.css">
+</head>
+
+<form asp-action="Index" method="get" class="mb-4">
+    <div class="row">
+        <div class="col-lg-12">
+            <div class="form-group" style="float: right;">
+                <label for="categorySelect" class="mb-2">Filter by Category:</label>
+                <br />
+                <select id="categorySelect" name="categoryId" class="form-control form-control-sm mb-2">
+                    @if (ViewBag.HasCategories)
+                    {
+                        <option value="">All Categories</option>
+                        @foreach (var category in ViewBag.Categories)
+                        {
+                            int selectedCategory = 0;
+                            bool isParsed = false;
+                            if (ViewBag.SelectedCategory is int)
+                            {
+                                selectedCategory = (int)ViewBag.SelectedCategory;
+                                isParsed = true;
+                            }
+                            else if (ViewBag.SelectedCategory is string)
+                            {
+                                isParsed = int.TryParse((string)ViewBag.SelectedCategory, out selectedCategory);
+                            }
+
+                            if (isParsed)
+                            {
+                                if (int.TryParse(category.Value, out int categoryValue) && selectedCategory == categoryValue)
+                                {
+                                    <option value="@category.Value" selected>@category.Text</option>
+                                }
+                                else
+                                {
+                                    <option value="@category.Value">@category.Text</option>
+                                }
+                            }
+                            else
+                            {
+                                <option value="@category.Value">@category.Text</option>
+                            }
+                        }
+                    }
+                    else
+                    {
+                        <option value="">No categories available</option>
+                    }
+                </select>
+            </div>
+        </div>
+    </div>
+</form>
 
 <div class="row pb-3">
     @foreach (var product in Model)
@@ -19,7 +74,7 @@
                     <div class="card border-0 p-3 shadow  border-top border-5 rounded">
                         @if (product.ProductImages != null && product.ProductImages.Count() > 0)
                         {
-                            <img src="@product.ProductImages.FirstOrDefault().ImageUrl" class="card-img-top rounded" />
+                            <img src="@((product.ProductImages != null && product.ProductImages.Any()) ? product.ProductImages.FirstOrDefault().ImageUrl : "https://placehold.co/500x600/png")" class="card-img-top rounded" />
                         }
                         else
                         {
@@ -61,3 +116,13 @@
         </div>
     }
 </div>
+
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
+
+<script>
+    $(document).ready(function () {
+        $('#categorySelect').change(function () {
+            this.form.submit();
+        });
+    });
+</script>

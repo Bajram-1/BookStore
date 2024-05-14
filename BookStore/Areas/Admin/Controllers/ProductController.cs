@@ -1,6 +1,7 @@
 ﻿using BookStore.BLL.DTO;
 using BookStore.BLL.IServices;
 using BookStore.Common;
+using BookStore.Common.Exceptions;
 using BookStore.DAL.IRepositories;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -10,43 +11,43 @@ namespace BookStore.Areas.Admin.Controllers
 {
     [Area("Admin")]
     [Authorize(Roles = StaticDetails.Role_Admin)]
-    public class ProductController(IUnitOfWork unitOfWork, IProductsService productsService, 
-                                   ICategoriesService categoriesService, IProductImagesService productImagesService, 
-                                   IWebHostEnvironment webHostEnvironment1) : Controller
+    public class ProductController(IProductsService productsService,
+                                   ICategoriesService categoriesService,
+                                   IProductImagesService productImagesService) : Controller
     {
-        public IActionResult Index()
+        public async Task<IActionResult> Index()
         {
             try
             {
-                var productList = productsService.GetAllProductsWithCategory();
+                var productList = await productsService.GetAllProductsWithCategoryAsync();
                 return View(productList);
             }
-            catch (Exception)
+            catch
             {
-                return StatusCode(500, "An error occurred while processing the request.");
+                throw;
             }
         }
 
         [HttpGet]
-        public IActionResult Upsert(int? id)
+        public async Task<IActionResult> Upsert(int? id)
         {
             try
             {
-                var productVM = productsService.GetProductForUpsert(id);
+                var productVM = await productsService.GetProductForUpsertAsync(id);
                 return View(productVM);
             }
-            catch (Exception)
+            catch
             {
-                return StatusCode(500, "An error occurred while processing the request.");
+                throw;
             }
         }
 
         [HttpPost]
-        public IActionResult Upsert(ProductVM productVM, List<IFormFile> files)
+        public async Task<IActionResult> Upsert(ProductViewModel productVM, List<IFormFile> files)
         {
             try
             {
-                bool isProductCreated = productsService.UpsertProduct(productVM, files);
+                bool isProductCreated = await productsService.UpsertProductAsync(productVM, files);
 
                 if (isProductCreated)
                 {
@@ -59,20 +60,17 @@ namespace BookStore.Areas.Admin.Controllers
 
                 return RedirectToAction("Index");
             }
-            catch (ArgumentNullException ex)
+            catch(DuplicateISBNException ex)
             {
-                ModelState.AddModelError("", ex.Message);
+                ModelState.AddModelError("Product.ISBN", ex.Message);
             }
-            catch (ArgumentException ex)
+            catch(DuplicateTitleAndAuthorException ex)
             {
-                ModelState.AddModelError("", ex.Message);
-            }
-            catch (Exception ex)
-            {
-                TempData["error"] = "Failed to upsert product.";
+                ModelState.AddModelError("Product.Title", ex.Message);
+                ModelState.AddModelError("Product.Author", ex.Message);
             }
 
-            var categoryList = categoriesService.GetCategories()
+            var categoryList = (await categoriesService.GetCategories())
                 .Select(u => new SelectListItem
                 {
                     Text = u.Name,
@@ -83,15 +81,15 @@ namespace BookStore.Areas.Admin.Controllers
             return View(productVM);
         }
 
-        public IActionResult DeleteImage(int imageId)
+        public async Task<IActionResult> DeleteImage(int imageId)
         {
             int productId;
             try
             {
-                productId = productImagesService.DeleteImage(imageId);
+                productId = await productImagesService.DeleteImageAsync(imageId);
                 TempData["success"] = "Image deleted successfully.";
             }
-            catch (Exception ex)
+            catch (Exception)
             {
                 TempData["error"] = "Failed to delete image.";
                 return RedirectToAction("Index");
@@ -103,26 +101,32 @@ namespace BookStore.Areas.Admin.Controllers
         #region API CALLS
 
         [HttpGet]
-        public IActionResult GetAll()
-        {
-            List<DAL.Entities.Product> objProductList = productsService.GetAllProducts(includeProperties: "Category").ToList();
-            return Json(new { data = objProductList });
-        }
-
-        [HttpDelete]
-        public IActionResult Delete(int id)
+        public async Task<IActionResult> GetAll()
         {
             try
             {
-                productsService.DeleteProduct(id);
+                var productDTOList = await productsService.GetAllProductsWithCategoryAsync();
+                return Json(new { data = productDTOList });
+            }
+            catch (Exception)
+            {
+                return Json(new { success = false, message = "Error while fetching products" });
+            }
+        }
+
+        [HttpDelete]
+        public async Task<IActionResult> Delete(int id)
+        {
+            try
+            {
+                await productsService.DeleteProductAsync(id);
                 return Json(new { success = true, message = "Product deleted successfully" });
             }
             catch (Exception)
             {
-                return Json(new { success = false, message = "Error while deleting" });
+                return Json(new { success = false, message = "Error while deleting product" });
             }
         }
-
         #endregion
     }
 }

@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore.Metadata.Builders;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Reflection.Emit;
 using System.Text;
 using System.Threading.Tasks;
 
@@ -17,6 +18,9 @@ namespace BookStore.DAL.DbConfig
 
             builder.HasKey(oh => oh.Id);
 
+            builder.Property(oh => oh.Id)
+                   .ValueGeneratedOnAdd();
+
             builder.Property(oh => oh.ApplicationUserId)
                 .IsRequired();
 
@@ -27,7 +31,8 @@ namespace BookStore.DAL.DbConfig
                 .IsRequired();
 
             builder.Property(oh => oh.OrderTotal)
-                .IsRequired();
+                .IsRequired()
+                .HasPrecision(18,2);
 
             builder.Property(oh => oh.OrderStatus)
                 .HasColumnType("nvarchar(max)");
@@ -55,14 +60,6 @@ namespace BookStore.DAL.DbConfig
             builder.Property(oh => oh.PaymentIntentId)
                 .HasColumnType("nvarchar(max)");
 
-            // Add StripePaymentId property configuration
-            builder.Property(oh => oh.StripePaymentId)
-                .HasColumnType("nvarchar(max)");
-
-            // Add Status property configuration
-            builder.Property(oh => oh.Status)
-                .HasColumnType("nvarchar(max)");
-
             builder.Property(oh => oh.PhoneNumber)
                 .IsRequired();
 
@@ -82,8 +79,9 @@ namespace BookStore.DAL.DbConfig
                 .IsRequired();
 
             builder.HasOne(oh => oh.ApplicationUser)
-                .WithOne()
-                .HasForeignKey<OrderHeader>(oh => oh.ApplicationUserId);
+             .WithMany(au => au.OrderHeaders)
+             .HasForeignKey(oh => oh.ApplicationUserId)
+             .IsRequired();
         }
     }
 }

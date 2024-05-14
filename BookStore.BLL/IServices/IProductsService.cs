@@ -11,19 +11,12 @@ namespace BookStore.BLL.IServices
 {
     public interface IProductsService
     {
-        Product Create(ProductAddEditRequestModel model);
-        void Delete(int id);
-        IEnumerable<DTO.Product> GetProducts();
-        void Update(ProductAddEditRequestModel model);
-        void RemoveRange(IEnumerable<DTO.Product> products);
-        ProductVM GetProductForUpsert(int? id);
-        bool UpsertProduct(ProductVM productVM, List<IFormFile> files);
-        IEnumerable<DAL.Entities.Product> GetAllProducts(string includeProperties);
-        void DeleteProduct(int id);
-        IEnumerable<DTO.Product> GetAllProductsWithCategory();
-        IEnumerable<BookStore.DAL.Entities.Product> GetAllCategoryProductImages(string includeProperties);
-        DAL.Entities.Product GetProductDetails(int productId, string includeProperties);
-        double CalculateTotalPrice(DAL.Entities.ShoppingCart shoppingCart);
-        DAL.Entities.Product GetProductById(int productId);
+        Task<IEnumerable<Product>> GetAllProductsWithCategoryAsync();
+        Task<ProductViewModel> GetProductForUpsertAsync(int? id);
+        Task<bool> UpsertProductAsync(ProductViewModel productVM, List<IFormFile> files);
+        Task DeleteProductAsync(int id);
+        Task<IEnumerable<BookStore.BLL.DTO.Product>> GetAllCategoryProductImagesAsync(string includeProperties);
+        Task<BLL.DTO.Product> GetProductDetailsAsync(int productId, string includeProperties);
+        Task<IEnumerable<DTO.Category>> GetAllCategoriesAsync();
     }
 }

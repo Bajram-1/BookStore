@@ -1,6 +1,7 @@
 ﻿using BookStore.BLL.DTO;
 using BookStore.BLL.DTO.Requests;
 using BookStore.DAL.Entities;
+using Microsoft.AspNetCore.Mvc;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -12,15 +13,10 @@ namespace BookStore.BLL.IServices
 {
     public interface IApplicationUsersService
     {
-        void AddApplicationUser(ApplicationUserAddEditRequestModel userObj);
-        void RemoveApplicationUser(string userId);
-        void UpdateApplicationUser(string id, ApplicationUserAddEditRequestModel userObj);
-        IEnumerable<DAL.Entities.ApplicationUser> GetAllApplicationUsers(Expression<Func<DAL.Entities.ApplicationUser, bool>>? filter = null, string? includeProperties = null);
-        DTO.ApplicationUser GetApplicationUserById(string userId);
-        void RemoveRange(IEnumerable<DAL.Entities.ApplicationUser> applicationUsers);
-        DTO.ApplicationUser Get(Expression<Func<DAL.Entities.ApplicationUser, bool>> filter);
-        RoleManagmentVM GetUserRoleManagement(string userId);
-        bool ManageUserRole(RoleManagmentVM roleManagmentVM);
-        DTO.ApplicationUser GetApplicationUser(string userId);
+        Task<DTO.ApplicationUser> GetAsync(Expression<Func<DAL.Entities.ApplicationUser, bool>> filter);
+        Task<RoleManagmentViewModel> GetUserRoleManagementAsync(string userId);
+        Task<bool> ManageUserRoleAsync(RoleManagmentViewModel roleManagmentVM);
+        Task<List<DAL.Entities.ApplicationUser>> GetAllUsersAsync();
+        Task<bool> LockUnlockUserAsync(string userId);
     }
 }

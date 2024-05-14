@@ -116,11 +116,17 @@ namespace BookStore.Areas.Identity.Pages.Account
 
             [Required]
             public string Name { get; set; }
-            public string? StreetAddress { get; set; }
-            public string? City { get; set; }
-            public string? State { get; set; }
-            public string? PostalCode { get; set; }
-            public string? PhoneNumber { get; set; }
+            [Required]
+            public string StreetAddress { get; set; }
+            [Required]
+            public string City { get; set; }
+            [Required]
+            public string State { get; set; }
+            [Required]
+            public string PostalCode { get; set; }
+            [Phone]
+            [Required]
+            public string PhoneNumber { get; set; }
             public int? CompanyId { get; set; }
             [ValidateNever]
             public IEnumerable<SelectListItem> CompanyList { get; set; }
@@ -139,7 +145,7 @@ namespace BookStore.Areas.Identity.Pages.Account
                     Text = i,
                     Value = i
                 }),
-                CompanyList = _unitOfWork.Companies.GetAll().Select(i => new SelectListItem
+                CompanyList = _unitOfWork.CompaniesRepository.GetAllAsync().Result.Select(i => new SelectListItem
                 {
                     Text = i.Name,
                     Value = i.Id.ToString()

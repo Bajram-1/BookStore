@@ -22,7 +22,7 @@ namespace BookStore.ViewComponents
 
             if (claim != null)
             {
-                var cartItemCount = _shoppingCartService.GetCartItemCount(claim.Value);
+                var cartItemCount = await _shoppingCartService.GetCartItemCountAsync(claim.Value);
                 HttpContext.Session.SetInt32(StaticDetails.SessionCart, cartItemCount);
 
                 return View(cartItemCount);

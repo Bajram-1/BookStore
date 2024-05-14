@@ -1,4 +1,4 @@
-﻿@model OrderVM
+﻿@model OrderViewModel
 
 <form method="post">
     <input asp-for="OrderHeader.Id" hidden />
@@ -27,7 +27,7 @@
                             <div class="row my-1">
                                 <div class="col-3">Name</div>
                                 <div class="col-9">
-                                    @if (User.IsInRole(StaticDetails.Role_Admin) || User.IsInRole(StaticDetails.Role_Employee))
+                                    @if (User.IsInRole(StaticDetails.Role_Admin))
                                     {
                                         <input asp-for="OrderHeader.Name" type="text" class="form-control" />
                                         <span asp-validation-for="OrderHeader.Name" class="text-danger"></span>
@@ -42,7 +42,7 @@
                             <div class="row my-1">
                                 <div class="col-3">Phone</div>
                                 <div class="col-9">
-                                    @if (User.IsInRole(StaticDetails.Role_Admin) || User.IsInRole(StaticDetails.Role_Employee))
+                                    @if (User.IsInRole(StaticDetails.Role_Admin))
                                     {
                                         <input asp-for="OrderHeader.PhoneNumber" type="text" class="form-control" />
                                         <span asp-validation-for="OrderHeader.PhoneNumber" class="text-danger"></span>
@@ -56,7 +56,7 @@
                             <div class="row my-1">
                                 <div class="col-3">Address</div>
                                 <div class="col-9">
-                                    @if (User.IsInRole(StaticDetails.Role_Admin) || User.IsInRole(StaticDetails.Role_Employee))
+                                    @if (User.IsInRole(StaticDetails.Role_Admin))
                                     {
                                         <input asp-for="OrderHeader.StreetAddress" type="text" class="form-control" />
                                         <span asp-validation-for="OrderHeader.StreetAddress" class="text-danger"></span>
@@ -70,7 +70,7 @@
                             <div class="row my-1">
                                 <div class="col-3">City</div>
                                 <div class="col-9">
-                                    @if (User.IsInRole(StaticDetails.Role_Admin) || User.IsInRole(StaticDetails.Role_Employee))
+                                    @if (User.IsInRole(StaticDetails.Role_Admin))
                                     {
                                         <input asp-for="OrderHeader.City" type="text" class="form-control" />
                                         <span asp-validation-for="OrderHeader.City" class="text-danger"></span>
@@ -84,7 +84,7 @@
                             <div class="row my-1">
                                 <div class="col-3">State</div>
                                 <div class="col-9">
-                                    @if (User.IsInRole(StaticDetails.Role_Admin) || User.IsInRole(StaticDetails.Role_Employee))
+                                    @if (User.IsInRole(StaticDetails.Role_Admin))
                                     {
                                         <input asp-for="OrderHeader.State" type="text" class="form-control" />
                                         <span asp-validation-for="OrderHeader.State" class="text-danger"></span>
@@ -98,7 +98,7 @@
                             <div class="row my-1">
                                 <div class="col-3">Zip Code</div>
                                 <div class="col-9">
-                                    @if (User.IsInRole(StaticDetails.Role_Admin) || User.IsInRole(StaticDetails.Role_Employee))
+                                    @if (User.IsInRole(StaticDetails.Role_Admin))
                                     {
                                         <input asp-for="OrderHeader.PostalCode" type="text" class="form-control" />
                                         <span asp-validation-for="OrderHeader.PostalCode" class="text-danger"></span>
@@ -124,7 +124,7 @@
                             <div class="row my-1">
                                 <div class="col-3">Carrier</div>
                                 <div class="col-9">
-                                    @if (User.IsInRole(StaticDetails.Role_Admin) || User.IsInRole(StaticDetails.Role_Employee))
+                                    @if (User.IsInRole(StaticDetails.Role_Admin))
                                     {
                                         <input asp-for="OrderHeader.Carrier" id="carrier" type="text" class="form-control" />
                                     }
@@ -137,7 +137,7 @@
                             <div class="row my-1">
                                 <div class="col-3">Tracking</div>
                                 <div class="col-9">
-                                    @if (User.IsInRole(StaticDetails.Role_Admin) || User.IsInRole(StaticDetails.Role_Employee))
+                                    @if (User.IsInRole(StaticDetails.Role_Admin))
                                     {
                                         <input asp-for="OrderHeader.TrackingNumber" id="trackingNumber" type="text" class="form-control" />
                                     }
@@ -154,7 +154,7 @@
                                 </div>
                             </div>
 
-                            @if (User.IsInRole(StaticDetails.Role_Admin) || User.IsInRole(StaticDetails.Role_Employee))
+                            @if (User.IsInRole(StaticDetails.Role_Admin))
                             {
                                 <div class="row my-1">
                                     <div class="col-3">Session ID</div>
@@ -198,7 +198,7 @@
                                     <input asp-for="OrderHeader.PaymentStatus" readonly type="text" class="form-control" />
                                 </div>
                             </div>
-                            @if (User.IsInRole(StaticDetails.Role_Admin) || User.IsInRole(StaticDetails.Role_Employee))
+                            @if (User.IsInRole(StaticDetails.Role_Admin))
                             {
                                 <button type="submit" asp-action="UpdateOrderDetail" class="btn btn-warning form-control my-1">Update Order Details</button>
                             }
@@ -243,7 +243,7 @@
                             {
                                 <button type="submit" class="btn btn-success form-control my-1">Pay Now</button>
                             }
-                            @if (User.IsInRole(StaticDetails.Role_Admin) || User.IsInRole(StaticDetails.Role_Employee))
+                            @if (User.IsInRole(StaticDetails.Role_Admin))
                             {
                                 @if (Model.OrderHeader.OrderStatus == StaticDetails.StatusApproved)
                                 {

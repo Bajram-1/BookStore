@@ -1,6 +1,6 @@
 using BookStore.DAL;
 using BookStore.BLL;
-
+using BookStore.Middlewares;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.UI.Services;
@@ -19,13 +19,15 @@ builder.Services.AddDbContext<ApplicationDbContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
 
 builder.Services.Configure<StripeSettings>(builder.Configuration.GetSection("Stripe"));
+builder.Services.Configure<MailJetSettings>(builder.Configuration.GetSection("MailJet"));
 
 builder.Services.RegisterBLLServices();
 builder.Services.RegisterDALServices(builder.Configuration);
 
 builder.Services.AddIdentity<IdentityUser, IdentityRole>().AddEntityFrameworkStores<ApplicationDbContext>().AddDefaultTokenProviders();
 
-builder.Services.ConfigureApplicationCookie(options => {
+builder.Services.ConfigureApplicationCookie(options =>
+{
     options.LoginPath = $"/Identity/Account/Login";
     options.LogoutPath = $"/Identity/Account/Logout";
     options.AccessDeniedPath = $"/Identity/Account/AccessDenied";
@@ -41,7 +43,8 @@ builder.Services.AddAuthentication().AddMicrosoftAccount(option =>
     option.ClientSecret = "Lx88Q~T2fKuHIsuJZM7RtrWbBDsh_UtABYMEkdsi";
 });
 builder.Services.AddDistributedMemoryCache();
-builder.Services.AddSession(options => {
+builder.Services.AddSession(options =>
+{
     options.IdleTimeout = TimeSpan.FromMinutes(100);
     options.Cookie.HttpOnly = true;
     options.Cookie.IsEssential = true;
@@ -68,19 +71,21 @@ app.UseRouting();
 app.UseAuthentication();
 app.UseAuthorization();
 app.UseSession();
-SeedDatabase();
+await SeedDatabase();
 app.MapRazorPages();
 app.MapControllerRoute(
     name: "default",
     pattern: "{area=Customer}/{controller=Home}/{action=Index}/{id?}");
 
+app.UseMiddleware<GlobalExceptionHandlerMiddleware>();
+
 app.Run();
 
-void SeedDatabase()
+async Task SeedDatabase()
 {
     using (var scope = app.Services.CreateScope())
     {
         var dbInitializer = scope.ServiceProvider.GetRequiredService<IDbInitializer>();
-        dbInitializer.Initialize();
+        await dbInitializer.InitializeAsync();
     }
 }

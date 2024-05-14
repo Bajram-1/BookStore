@@ -17,17 +17,18 @@ namespace BookStore.DAL.DbConfig
             builder.ToTable("AspNetUsers");
 
             builder.Property(e => e.Name).IsRequired();
-            builder.Property(e => e.StreetAddress).IsRequired(false);
-            builder.Property(e => e.City).IsRequired(false);
-            builder.Property(e => e.State).IsRequired(false);
-            builder.Property(e => e.PostalCode).IsRequired(false);
-            builder.Property(e => e.PhoneNumber).IsRequired(false);
+            builder.Property(e => e.StreetAddress).IsRequired();
+            builder.Property(e => e.City).IsRequired();
+            builder.Property(e => e.State).IsRequired();
+            builder.Property(e => e.PostalCode).IsRequired();
+            builder.Property(e => e.PhoneNumber).IsRequired();
+
             builder.Ignore(e => e.Role);
 
             builder.HasOne(e => e.Company)
                 .WithMany()
                 .HasForeignKey(e => e.CompanyId)
-                .OnDelete(DeleteBehavior.ClientSetNull)
+                .OnDelete(DeleteBehavior.Restrict)
                 .IsRequired(false); 
         }
     }

@@ -13,111 +13,27 @@ using System.Threading.Tasks;
 
 namespace BookStore.BLL.Services
 {
-    public class ProductImagesService(IProductImagesRepository productImagesRepository, IUnitOfWork unitOfWork, 
+    public class ProductImagesService(IProductImagesRepository productImagesRepository, 
+                                      IUnitOfWork unitOfWork,
                                       IWebHostEnvironment webHostEnvironment) : IProductImagesService
     {
-        public DTO.ProductImage Create(ProductImageAddEditRequestModel model)
+        public async Task<IEnumerable<BLL.DTO.ProductImage>> GetProductImagesAsync()
         {
-            var productImage = new DAL.Entities.ProductImage
+            var productImages = await productImagesRepository.GetAllAsync();
+
+            var productImageDTOs = productImages.Select(pi => new BLL.DTO.ProductImage
             {
-                ImageUrl = model.ImageUrl,
-                ProductId = model.ProductId,
-            };
-
-            productImagesRepository.Add(productImage);
-            unitOfWork.SaveChanges();
-
-            return GetById(productImage.Id);
-        }
-
-        private DTO.ProductImage GetById(int id)
-        {
-            var dbProductImage = productImagesRepository.Get(p => p.Id == id);
-
-            if (dbProductImage == null)
-            {
-                throw new Exception("Product image not found");
-            }
-            return new DTO.ProductImage
-            {
-                Id = dbProductImage.Id,
-                ImageUrl = dbProductImage.ImageUrl,
-                ProductId = dbProductImage.ProductId
-            };
-        }
-
-        public void Delete(int id)
-        {
-            var productImage = productImagesRepository.Get(p => p.Id == id);
-
-            if (productImage == null)
-            {
-                throw new Exception("Product image not found");
-            }
-
-            productImagesRepository.Remove(productImage);
-            unitOfWork.SaveChanges();
-        }
-
-        public IEnumerable<DTO.ProductImage> GetProductImages()
-        {
-            var dbProductImages = productImagesRepository.GetAll();
-
-            var result = new List<DTO.ProductImage>();
-            foreach (var productImage in dbProductImages)
-            {
-                result.Add(new DTO.ProductImage
-                {
-                    Id = productImage.Id,
-                    ImageUrl = productImage.ImageUrl,
-                    ProductId = productImage.ProductId
-                });
-            }
-            return result;
-        }
-
-        public IEnumerable<DTO.ProductImage> GetProductImagesByProductId(int productId)
-        {
-            var productImages = productImagesRepository.GetProductImagesByProductId(productId);
-
-            return productImages.Select(image => new DTO.ProductImage
-            {
-                Id = image.Id,
-                ProductId = image.ProductId,
-                ImageUrl = image.ImageUrl
+                Id = pi.Id,
+                ImageUrl = pi.ImageUrl,
+                ProductId = pi.ProductId,
             });
+
+            return productImageDTOs;
         }
 
-        public void Update(int id, ProductImageAddEditRequestModel model)
+        public async Task<int> DeleteImageAsync(int imageId)
         {
-            var productImageToUpdate = productImagesRepository.Get(p => p.Id == id);
-            if (productImageToUpdate == null)
-            {
-                throw new Exception("Product image not found");
-            }
-
-            productImageToUpdate.ImageUrl = model.ImageUrl;
-            productImageToUpdate.ProductId = model.ProductId;
-
-            unitOfWork.SaveChanges();
-        }
-
-        public IEnumerable<DTO.ProductImage> GetAllProductImages()
-        {
-            var entities = productImagesRepository.GetAll().ToList();
-            var dtos = entities.Select(entity => new DTO.ProductImage
-            {
-                Id = entity.Id,
-                ImageUrl= entity.ImageUrl,
-                ProductId = entity.ProductId
-            }).ToList();
-
-            return dtos;
-        }
-
-        public int DeleteImage(int imageId)
-        {
-            var imageToBeDeleted = productImagesRepository.Get(u => u.Id == imageId);
+            var imageToBeDeleted = await productImagesRepository.GetAsync(u => u.Id == imageId);
             if (imageToBeDeleted == null)
                 throw new Exception("Image not found");
 
@@ -127,14 +43,14 @@ namespace BookStore.BLL.Services
             {
                 var oldImagePath = Path.Combine(webHostEnvironment.WebRootPath, imageToBeDeleted.ImageUrl.TrimStart('\\'));
 
-                if (System.IO.File.Exists(oldImagePath))
+                if (File.Exists(oldImagePath))
                 {
-                    System.IO.File.Delete(oldImagePath);
+                    File.Delete(oldImagePath);
                 }
             }
 
-            productImagesRepository.Remove(imageToBeDeleted);
-            unitOfWork.SaveChanges();
+            await productImagesRepository.DeleteAsync(imageToBeDeleted);
+            await unitOfWork.SaveChangesAsync();
 
             return productId;
         }

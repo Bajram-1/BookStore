@@ -10,10 +10,10 @@ namespace BookStore.BLL.IServices
 {
     public interface ICategoriesService
     {
-        IEnumerable<CategoryAddEditRequestModel> GetCategories();
-        CategoryAddEditRequestModel GetById(int id);
-        void Update(int id, CategoryAddEditRequestModel model);
-        CategoryAddEditRequestModel Create(CategoryAddEditRequestModel model);
-        void Delete(int id);
+        Task<CategoryAddEditRequestModel> Create(CategoryAddEditRequestModel model);
+        Task Delete(int id);
+        Task<CategoryAddEditRequestModel> GetByIdAsync(int id);
+        Task<List<Category>> GetCategories();
+        Task Update(int id, CategoryAddEditRequestModel model);
     }
 }

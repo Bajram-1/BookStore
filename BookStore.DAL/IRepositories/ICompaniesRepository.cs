@@ -8,15 +8,10 @@ using System.Threading.Tasks;
 
 namespace BookStore.DAL.IRepositories
 {
-    public interface ICompaniesRepository
+    public interface ICompaniesRepository : IBaseRepository<Company, int>
     {
-        void Update(Company company);
-        IEnumerable<Company> GetAll(Expression<Func<Company, bool>>? filter = null, string? includeProperties = null);
-        Company Get(Expression<Func<Company, bool>> filter, string? includeProperties = null, bool tracked = false);
-        void Add(Company company);
-        void Remove(Company company);
-        void RemoveRange(IEnumerable<Company> companies);
-        Company? GetByName(string name);
-        Company GetById(int id);
+        Task<Company> GetByNameAsync(string name);
+        Task<Company> GetByIdAsync(int id);
+        Task<IEnumerable<Company>> GetAllAsync(Expression<Func<Company, bool>> filter = null, string includeProperties = null);
     }
 }

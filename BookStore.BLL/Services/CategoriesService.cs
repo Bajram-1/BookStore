@@ -1,15 +1,40 @@
 ﻿using BookStore.BLL.DTO;
 using BookStore.BLL.DTO.Requests;
 using BookStore.BLL.IServices;
+using BookStore.BLL.Services;
 using BookStore.DAL.Entities;
 using BookStore.DAL.IRepositories;
 using BookStore.DAL.Repositories;
+using Microsoft.EntityFrameworkCore;
 using System.Linq.Expressions;
+using static Azure.Core.HttpHeader;
 
-public class CategoriesService(ICategoriesRepository categoriesRepository, IUnitOfWork unitOfWork) : ICategoriesService
+public class CategoriesService(ICategoriesRepository categoriesRepository, 
+                               IUnitOfWork unitOfWork,
+                               ICacheService cacheService) : ICategoriesService
 {
-    public CategoryAddEditRequestModel Create(CategoryAddEditRequestModel model)
+    public static event ObjectAddedEvent OnCategoryAdded;
+    public static event OnEntityDeleted OnEntityDeleted;
+
+    public async Task<CategoryAddEditRequestModel> Create(CategoryAddEditRequestModel model)
     {
+        var existingCategory = await categoriesRepository.GetByNameAsync(model.Name);
+        if (existingCategory != null)
+        {
+            throw new Exception("This category already exists.");
+        }
+
+        if (model.DisplayOrder == null)
+        {
+            model.DisplayOrder = 1;
+        }
+
+        int? actualDisplayOrder = await categoriesRepository.GetActualDisplayOrderAsync();
+        int nextDisplayOrder = actualDisplayOrder ?? 1;
+        nextDisplayOrder++;
+
+        model.DisplayOrder = nextDisplayOrder;
+
         var category = new BookStore.DAL.Entities.Category
         {
             Id = model.Id,
@@ -17,20 +42,36 @@ public class CategoriesService(ICategoriesRepository categoriesRepository, IUnit
             Description = model.Description,
             DisplayOrder = model.DisplayOrder
         };
-        categoriesRepository.Create(category);
-        unitOfWork.SaveChanges();
-        return GetById(category.Id);
+
+        await categoriesRepository.CreateAsync(category);
+        await unitOfWork.SaveChangesAsync();
+        await cacheService.RemoveAsync("categories");
+        OnCategoryAdded?.Invoke(category.Id);
+        return await GetByIdAsync(category.Id);
     }
 
-    public void Delete(int id)
+    public async Task Delete(int id)
     {
-        categoriesRepository.Delete(id);
-        unitOfWork.SaveChanges();
+        await categoriesRepository.DeleteAsync(id);
+        await unitOfWork.SaveChangesAsync();
+        OnEntityDeleted?.Invoke(new BookStore.DAL.Entities.AuditLog
+        {
+            EntityId = id.ToString(),
+            EntityName = "Category",
+            Details = "Category was deleted",
+            LogType = BookStore.Common.Enums.AuditLogType.Delete
+        });
+        await cacheService.RemoveAsync("categories");
     }
 
-    public CategoryAddEditRequestModel GetById(int id)
+    public async Task<CategoryAddEditRequestModel> GetByIdAsync(int id)
     {
-        var dbCategory = categoriesRepository.GetById(id) ?? throw new Exception("Category not found");
+        var dbCategory = await categoriesRepository.GetByIdAsync(id);
+        if (dbCategory == null)
+        {
+            throw new Exception("Category not found");
+        }
+
         return new CategoryAddEditRequestModel
         {
             Id = dbCategory.Id,
@@ -40,29 +81,46 @@ public class CategoriesService(ICategoriesRepository categoriesRepository, IUnit
         };
     }
 
-    public IEnumerable<CategoryAddEditRequestModel> GetCategories()
+    public async Task<List<BookStore.BLL.DTO.Category>> GetCategories()
     {
-        var dbCategories = categoriesRepository.GetAll();
-        var result = new List<CategoryAddEditRequestModel>();
-        foreach (var x in dbCategories)
+        string cacheKey = "categories";
+
+        return await cacheService.GetOrAddAsync(cacheKey, async () =>
         {
-            result.Add(new CategoryAddEditRequestModel
+            var dbCategories = await categoriesRepository.GetAllAsync();
+            var categoriesList = dbCategories.Select(category => new BookStore.BLL.DTO.Category
             {
-                Id = x.Id,
-                Name = x.Name,
-                Description = x.Description,
-                DisplayOrder = x.DisplayOrder
-            });
-        }
-        return result;
+                Id = category.Id,
+                Name = category.Name,
+                Description = category.Description,
+                DisplayOrder = category.DisplayOrder
+            }).ToList();
+
+            return categoriesList;
+        });
     }
 
-    public void Update(int id, CategoryAddEditRequestModel model)
+    public async Task Update(int id, CategoryAddEditRequestModel model)
     {
-        var category = categoriesRepository.GetById(id);
+        var existingCategory = await categoriesRepository.GetByNameAsync(model.Name);
+        
+        if (existingCategory != null && existingCategory.Id != id)
+        {
+            throw new Exception("This category already exists.");
+        }
+
+        var category = await categoriesRepository.GetByIdAsync(id);
+        
+        if (category == null)
+        {
+            throw new Exception("Category not found");
+        }
+
         category.Name = model.Name;
         category.Description = model.Description;
         category.DisplayOrder = model.DisplayOrder;
-        unitOfWork.SaveChanges();
+
+        await unitOfWork.SaveChangesAsync();
+        await cacheService.RemoveAsync("categories");
     }
 }

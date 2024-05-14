@@ -28,45 +28,41 @@ namespace BookStore.DAL.DbInitializer
         }
 
 
-        public void Initialize()
+        public async Task InitializeAsync()
         {
-            //migrations if they are not applied
             try
             {
-                if (_db.Database.GetPendingMigrations().Count() > 0)
+                if (_db.Database.GetPendingMigrations().Any())
                 {
-                    _db.Database.Migrate();
+                    await _db.Database.MigrateAsync();
                 }
             }
-            catch (Exception ex) { }
-
-            //create roles if they are not created
-            if (!_roleManager.RoleExistsAsync(StaticDetails.Role_Customer).GetAwaiter().GetResult())
+            catch
             {
-                _roleManager.CreateAsync(new IdentityRole(StaticDetails.Role_Customer)).GetAwaiter().GetResult();
-                _roleManager.CreateAsync(new IdentityRole(StaticDetails.Role_Employee)).GetAwaiter().GetResult();
-                _roleManager.CreateAsync(new IdentityRole(StaticDetails.Role_Admin)).GetAwaiter().GetResult();
-                _roleManager.CreateAsync(new IdentityRole(StaticDetails.Role_Company)).GetAwaiter().GetResult();
-
-                //if roles are not created, then we will create admin user as well
-                _userManager.CreateAsync(new ApplicationUser
-                {
-                    UserName = "admin@user.com",
-                    Email = "admin@user.com",
-                    Name = "Bajram Shehi",
-                    PhoneNumber = "123123123",
-                    StreetAddress = "Test 123 Road",
-                    State = "AL",
-                    PostalCode = "23422",
-                    City = "Tirana"
-                }, "Admin123.").GetAwaiter().GetResult();
-
-
-                ApplicationUser user = _db.ApplicationUsers.FirstOrDefault(u => u.Email == "admin@user.com");
-                _userManager.AddToRoleAsync(user, StaticDetails.Role_Admin).GetAwaiter().GetResult();
-
+                throw;
             }
-            return;
+
+            if (!await _roleManager.RoleExistsAsync(StaticDetails.Role_Customer))
+            {
+                await _roleManager.CreateAsync(new IdentityRole(StaticDetails.Role_Customer));
+                await _roleManager.CreateAsync(new IdentityRole(StaticDetails.Role_Admin));
+                await _roleManager.CreateAsync(new IdentityRole(StaticDetails.Role_Company));
+
+                await _userManager.CreateAsync(new ApplicationUser
+                {
+                    UserName = "admin@gmail.com",
+                    Email = "admin@gmail.com",
+                    Name = "Bajram Shehi",
+                    PhoneNumber = "0695668776",
+                    StreetAddress = "Rruga Arben Lami",
+                    State = "Shqiperi",
+                    PostalCode = "1001",
+                    City = "Tirana"
+                }, "Albania128.");
+
+                ApplicationUser user = await _db.ApplicationUsers.FirstOrDefaultAsync(u => u.Email == "admin@gmail.com");
+                await _userManager.AddToRoleAsync(user, StaticDetails.Role_Admin);
+            }
         }
     }
 }

@@ -1,5 +1,6 @@
 ﻿using BookStore.BLL.DTO;
 using BookStore.BLL.IServices;
+using BookStore.BLL.Services;
 using BookStore.Common;
 using BookStore.DAL.Entities;
 using BookStore.DAL.IRepositories;
@@ -14,84 +15,57 @@ namespace BookStore.Areas.Admin.Controllers
 {
     [Area("Admin")]
     [Authorize(Roles = StaticDetails.Role_Admin)]
-    public class UserController(UserManager<IdentityUser> userManager, RoleManager<IdentityRole> roleManager,
-                                IUnitOfWork unitOfWork, IApplicationUsersService applicationUsersService) : Controller
+    public class UserController(IApplicationUsersService applicationUsersService) : Controller
     {
-        public IActionResult Index()
+        public async Task<IActionResult> Index()
         {
-            return View();
+            return await Task.FromResult(View());
         }
 
         [HttpGet]
-        public IActionResult RoleManagment(string userId)
+        public async Task<IActionResult> RoleManagment(string userId)
         {
-            var roleVM = applicationUsersService.GetUserRoleManagement(userId);
+            var roleVM = await applicationUsersService.GetUserRoleManagementAsync(userId);
             return View(roleVM);
         }
 
         [HttpPost]
-        public IActionResult RoleManagment(RoleManagmentVM roleManagmentVM)
+        public async Task<IActionResult> RoleManagment(RoleManagmentViewModel roleManagmentVM)
         {
             try
             {
-                applicationUsersService.ManageUserRole(roleManagmentVM);
+                await applicationUsersService.ManageUserRoleAsync(roleManagmentVM);
                 return RedirectToAction("Index");
             }
-            catch (Exception)
+            catch (Exception ex)
             {
-                ViewBag.ErrorMessage = "An unexpected error occurred.";
+                ViewBag.ErrorMessage = "An unexpected error occurred: " + ex.Message;
+                return View(roleManagmentVM);
             }
-
-            return View(roleManagmentVM);
         }
 
         #region API CALLS
 
         [HttpGet]
-        public IActionResult GetAll()
+        public async Task<IActionResult> GetAll()
         {
-            List<DAL.Entities.ApplicationUser> objUserList = unitOfWork.ApplicationUser.GetAll(includeProperties: "Company").ToList();
-
-            foreach (var user in objUserList)
-            {
-
-                user.Role = userManager.GetRolesAsync(user).GetAwaiter().GetResult().FirstOrDefault();
-
-                if (user.Company == null)
-                {
-                    user.Company = new DAL.Entities.Company()
-                    {
-                        Name = ""
-                    };
-                }
-            }
-
-            return Json(new { data = objUserList });
+            var users = await applicationUsersService.GetAllUsersAsync();
+            return Json(new { data = users });
         }
 
-
         [HttpPost]
-        public IActionResult LockUnlock([FromBody] string? id)
+        public async Task<IActionResult> LockUnlock([FromBody] string userId)
         {
+            bool success = await applicationUsersService.LockUnlockUserAsync(userId);
 
-            var objFromDb = unitOfWork.ApplicationUser.Get(u => u.Id == id);
-            if (objFromDb == null)
+            if (success)
             {
-                return Json(new { success = false, message = "Error while Locking/Unlocking" });
-            }
-
-            if (objFromDb.LockoutEnd != null && objFromDb.LockoutEnd > DateTime.Now)
-            {
-                //user is currently locked and we need to unlock them
-                objFromDb.LockoutEnd = DateTime.Now;
+                return Json(new { success = true, message = "Operation Successful" });
             }
             else
             {
-                objFromDb.LockoutEnd = DateTime.Now.AddYears(1000);
+                return Json(new { success = false, message = "Error while Locking/Unlocking" });
             }
-            unitOfWork.ApplicationUser.Update(objFromDb);
-            unitOfWork.SaveChanges();
-            return Json(new { success = true, message = "Operation Successful" });
         }
 
         #endregion

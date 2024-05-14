@@ -20,7 +20,13 @@ namespace BookStore.DAL
                 options.UseSqlServer(configuration.GetConnectionString("DefaultConnection"));
             });
 
+            //services.AddDbContext<ApplicationDbContext>(options =>
+            //{
+            //    options.UseSqlServer(configuration.GetConnectionString("UnitTestsConnection"));
+            //});
+
             services.AddScoped<IUnitOfWork, UnitOfWork>();
+            services.AddScoped<IAuditLogsRepository, AuditLogsRepository>();
             services.AddScoped<IApplicationUsersRepository, ApplicationUsersRepository>();
             services.AddScoped<ICategoriesRepository, CategoriesRepository>();
             services.AddScoped<ICompaniesRepository, CompaniesRepository>();

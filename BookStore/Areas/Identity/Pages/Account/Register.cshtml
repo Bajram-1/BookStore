@@ -12,6 +12,10 @@
     }
 </style>
 
+<head>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons/font/bootstrap-icons.css" rel="stylesheet">
+</head>
+
 <div class="card shadow border-0 mt-4">
     <div class="card-header bg-secondary bg-gradient ml-0 py-4">
         <div class="row">
@@ -49,13 +53,15 @@
                         <span asp-validation-for="Input.PhoneNumber" class="text-danger"></span>
                     </div>
                     <div class="form-floating mb-3 col-md-6">
-                        <input asp-for="Input.Password" class="form-control" autocomplete="new-password" aria-required="true" placeholder="password" />
+                        <input asp-for="Input.Password" type="password" class="form-control" id="password" autocomplete="new-password" aria-required="true" placeholder="Password" />
                         <label asp-for="Input.Password" class="ms-2 text-muted">Password</label>
+                        <i class="bi bi-eye-slash position-absolute top-50 end-0" style="margin-right: 20px;" onclick="togglePasswordVisibility('password', this)"></i>
                         <span asp-validation-for="Input.Password" class="text-danger"></span>
                     </div>
                     <div class="form-floating mb-3 col-md-6">
-                        <input asp-for="Input.ConfirmPassword" class="form-control" autocomplete="new-password" aria-required="true" placeholder="password" />
+                        <input asp-for="Input.ConfirmPassword" type="password" class="form-control" id="confirmPassword" autocomplete="new-password" aria-required="true" placeholder="Confirm Password" />
                         <label asp-for="Input.ConfirmPassword" class="ms-2 text-muted">Confirm Password</label>
+                        <i class="bi bi-eye-slash position-absolute top-50 end-0" style="margin-right: 20px; cursor: pointer;" onclick="togglePasswordVisibility('confirmPassword', this)"></i>
                         <span asp-validation-for="Input.ConfirmPassword" class="text-danger"></span>
                     </div>
 
@@ -139,6 +145,19 @@
 @section Scripts {
     <partial name="_ValidationScriptsPartial" />
     <script>
+        function togglePasswordVisibility(fieldId, icon) {
+            var field = document.getElementById(fieldId);
+            if (field.type === "password") {
+                field.type = "text";
+                icon.classList.remove('bi-eye-slash');
+                icon.classList.add('bi-eye');
+            } else {
+                field.type = "password";
+                icon.classList.remove('bi-eye');
+                icon.classList.add('bi-eye-slash');
+            }
+        }
+
         $(document).ready(function () {
             $('#Input_Role').change(function () {
                 var selection = $('#Input_Role Option:Selected').text();

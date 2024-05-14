@@ -6,104 +6,224 @@ using BookStore.Common;
 using BookStore.DAL.Entities;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Stripe;
+using Stripe.Checkout;
+using Stripe.Climate;
+using System.Security.Claims;
+using Microsoft.EntityFrameworkCore;
 
 namespace BookStore.Areas.Admin.Controllers
 {
     [Area("Admin")]
     [Authorize]
-    public class OrderController(IOrderHeadersService orderHeadersService, IOrderDetailsService orderDetailsService) : Controller
+    public class OrderController(IOrderHeadersService orderHeadersService, 
+                                 IOrderDetailsService orderDetailsService) : Controller
     {
         [BindProperty]
-        public OrderVM OrderVM { get; set; }
+        public OrderViewModel OrderVM { get; set; }
 
-        public IActionResult Index()
+        public async Task<IActionResult> Index()
         {
-            var orderHeaders = orderHeadersService.GetAllOrderDetails();
-            return View(orderHeaders);
+            return await Task.FromResult(View());
         }
 
-        public IActionResult Details(int orderId)
+        public async Task<IActionResult> Details(int orderId)
         {
-            var orderVM = new OrderVM
+            OrderVM = new()
             {
-                OrderHeader = orderHeadersService.Get(o => o.Id == orderId, includeProperties: "ApplicationUser"),
-                OrderDetail = (IEnumerable<BLL.DTO.OrderDetail>)orderDetailsService.GetAll(u => u.OrderHeaderId == orderId, includeProperties: "Product")
+                OrderHeader = await orderHeadersService.GetAsync(o => o.Id == orderId, includeProperties: "ApplicationUser"),
+                OrderDetail = await orderDetailsService.GetAllByOrderHeaderIdAsync(o => o.Id == orderId, includeProperties: "Product")
             };
 
-            return View(orderVM);
+            return View(OrderVM);
         }
 
         [HttpPost]
-        [Authorize(Roles = StaticDetails.Role_Admin + "," + StaticDetails.Role_Employee)]
-        public IActionResult UpdateOrderDetail(OrderHeaderAddEditRequestModel model)
+        [Authorize(Roles = StaticDetails.Role_Admin)]
+        public async Task<IActionResult> UpdateOrderDetail()
         {
-            try
+            var orderHeaderFromDb = await orderHeadersService.GetOrderHeaderAsync(u => u.Id == OrderVM.OrderHeader.Id);
+            
+            orderHeaderFromDb.Name = OrderVM.OrderHeader.Name;
+            orderHeaderFromDb.PhoneNumber = OrderVM.OrderHeader.PhoneNumber;
+            orderHeaderFromDb.StreetAddress = OrderVM.OrderHeader.StreetAddress;
+            orderHeaderFromDb.City = OrderVM.OrderHeader.City;
+            orderHeaderFromDb.State = OrderVM.OrderHeader.State;
+            orderHeaderFromDb.PostalCode = OrderVM.OrderHeader.PostalCode;
+
+            if (!string.IsNullOrEmpty(OrderVM.OrderHeader.Carrier))
             {
-                orderHeadersService.Update(model);
-                TempData["success"] = "Order Details Updated Successfully.";
-                return RedirectToAction(nameof(Details), new { orderId = model.Id });
+                orderHeaderFromDb.Carrier = OrderVM.OrderHeader.Carrier;
             }
-            catch (Exception ex)
+            if (!string.IsNullOrEmpty(OrderVM.OrderHeader.TrackingNumber))
             {
-                ModelState.AddModelError(string.Empty, $"Error updating order details: {ex.Message}");
-                return View(nameof(Details), model);
+                orderHeaderFromDb.Carrier = OrderVM.OrderHeader.TrackingNumber;
             }
+
+            await orderHeadersService.UpdateAsync(orderHeaderFromDb);
+
+            TempData["Success"] = "Order Details Updated Successfully.";
+
+
+            return RedirectToAction(nameof(Details), new { orderId = orderHeaderFromDb.Id });
         }
 
         [HttpPost]
-        [Authorize(Roles = StaticDetails.Role_Admin + "," + StaticDetails.Role_Employee)]
-        public IActionResult StartProcessing(int orderId)
+        [Authorize(Roles = StaticDetails.Role_Admin)]
+        public async Task<IActionResult> StartProcessing()
         {
-            orderHeadersService.UpdateStatus(orderId, StaticDetails.StatusInProcess);
-            TempData["success"] = "Order Processing Started Successfully.";
-            return RedirectToAction(nameof(Details), new { orderId });
+            await orderHeadersService.UpdateStatusAsync(OrderVM.OrderHeader.Id, StaticDetails.StatusInProcess);
+            TempData["Success"] = "Order Details Updated Successfully.";
+            return RedirectToAction(nameof(Details), new { orderId = OrderVM.OrderHeader.Id });
         }
 
         [HttpPost]
-        [Authorize(Roles = StaticDetails.Role_Admin + "," + StaticDetails.Role_Employee)]
-        public IActionResult ShipOrder(int orderId, string carrier, string trackingNumber)
+        [Authorize(Roles = StaticDetails.Role_Admin)]
+        public async Task<IActionResult> ShipOrder()
         {
-            orderHeadersService.UpdateStatus(orderId, StaticDetails.StatusShipped);
-            orderHeadersService.UpdateShippingInfo(orderId, carrier, trackingNumber);
-            TempData["success"] = "Order Shipped Successfully.";
-            return RedirectToAction(nameof(Details), new { orderId });
+            var orderHeader = await orderHeadersService.GetOrderHeaderAsync(u => u.Id == OrderVM.OrderHeader.Id);
+            orderHeader.TrackingNumber = OrderVM.OrderHeader.TrackingNumber;
+            orderHeader.Carrier = OrderVM.OrderHeader.Carrier;
+            orderHeader.OrderStatus = StaticDetails.StatusShipped;
+            orderHeader.ShippingDate = DateTime.Now;
+            if (orderHeader.PaymentStatus == StaticDetails.PaymentStatusDelayedPayment)
+            {
+                orderHeader.PaymentDueDate = DateTime.Now.AddDays(30);
+            }
+
+            await orderHeadersService.UpdateAsync(orderHeader);
+            TempData["Success"] = "Order Shipped Successfully.";
+            return RedirectToAction(nameof(Details), new { orderId = OrderVM.OrderHeader.Id });
         }
 
         [HttpPost]
-        [Authorize(Roles = StaticDetails.Role_Admin + "," + StaticDetails.Role_Employee)]
-        public IActionResult CancelOrder(int orderId)
+        [Authorize(Roles = StaticDetails.Role_Admin)]
+        public async Task<IActionResult> CancelOrder()
         {
-            orderHeadersService.UpdateStatus(orderId, StaticDetails.StatusCancelled);
-            TempData["success"] = "Order Cancelled Successfully.";
-            return RedirectToAction(nameof(Details), new { orderId });
+            var orderHeader = await orderHeadersService.GetOrderHeaderAsync(u => u.Id == OrderVM.OrderHeader.Id);
+
+            if (orderHeader.PaymentStatus == StaticDetails.PaymentStatusApproved)
+            {
+                var options = new RefundCreateOptions
+                {
+                    Reason = RefundReasons.RequestedByCustomer,
+                    PaymentIntent = orderHeader.PaymentIntentId
+                };
+
+                var service = new RefundService();
+                Refund refund = service.Create(options);
+
+                await orderHeadersService.UpdateStatusAsync(orderHeader.Id, StaticDetails.StatusCancelled, StaticDetails.StatusRefunded);
+            }
+            else
+            {
+                await orderHeadersService.UpdateStatusAsync(orderHeader.Id, StaticDetails.StatusCancelled, StaticDetails.StatusCancelled);
+            }
+
+            TempData["Success"] = "Order Cancelled Successfully.";
+            return RedirectToAction(nameof(Details), new { orderId = OrderVM.OrderHeader.Id });
+        }
+
+        [ActionName("Details")]
+        [HttpPost]
+        public async Task<IActionResult> Details_PAY_NOW()
+        {
+            OrderVM.OrderHeader = await orderHeadersService
+                .GetAsync(u => u.Id == OrderVM.OrderHeader.Id, includeProperties: "ApplicationUser");
+            OrderVM.OrderDetail = await orderDetailsService
+               .GetAllByOrderHeaderIdAsync(u => u.OrderHeaderId == OrderVM.OrderHeader.Id, includeProperties: "Product");
+
+            var domain = Request.Scheme + "://" + Request.Host.Value + "/";
+            var options = new SessionCreateOptions
+            {
+                SuccessUrl = domain + $"admin/order/PaymentConfirmation?orderHeaderId={OrderVM.OrderHeader.Id}",
+                CancelUrl = domain + $"admin/order/details?orderId={OrderVM.OrderHeader.Id}",
+                LineItems = new List<SessionLineItemOptions>(),
+                Mode = "payment",
+            };
+
+            foreach (var item in OrderVM.OrderDetail)
+            {
+                var sessionLineItem = new SessionLineItemOptions
+                {
+                    PriceData = new SessionLineItemPriceDataOptions
+                    {
+                        UnitAmount = (long)(item.Price * 100),
+                        Currency = "usd",
+                        ProductData = new SessionLineItemPriceDataProductDataOptions
+                        {
+                            Name = item.Product.Title
+                        }
+                    },
+                    Quantity = item.Count
+                };
+                options.LineItems.Add(sessionLineItem);
+            }
+
+            var service = new SessionService();
+            Session session = service.Create(options);
+            await orderHeadersService.UpdateStripePaymentID(OrderVM.OrderHeader.Id, session.Id, session.PaymentIntentId);
+            Response.Headers.Add("Location", session.Url);
+            return new StatusCodeResult(303);
+        }
+
+        public async Task<IActionResult> PaymentConfirmation(int orderHeaderId)
+        {
+            BLL.DTO.OrderHeader orderHeader = await orderHeadersService.GetOrderHeaderAsync(u => u.Id == orderHeaderId);
+            if (orderHeader.PaymentStatus == StaticDetails.PaymentStatusDelayedPayment)
+            {
+                var service = new SessionService();
+                Session session = service.Get(orderHeader.SessionId);
+
+                if (session.PaymentStatus.ToLower() == "paid")
+                {
+                    await orderHeadersService.UpdateStripePaymentID(orderHeaderId, session.Id, session.PaymentIntentId);
+                    await orderHeadersService.UpdateStatusAsync(orderHeaderId, orderHeader.OrderStatus, StaticDetails.PaymentStatusApproved);
+                }
+            }
+            return View(orderHeaderId);
         }
 
         #region API CALLS
 
-        [HttpGet]
-        public IActionResult GetAll(string status)
+        public async Task<IActionResult> GetAll(string status)
         {
-            var orderHeaders = orderHeadersService.GetAllOrderDetails();
+            IEnumerable<BLL.DTO.OrderHeader> objOrderHeaders;
+
+            if (User.IsInRole(StaticDetails.Role_Admin))
+            {
+                objOrderHeaders = await orderHeadersService.GetAllAsync(includeProperties: "ApplicationUser");
+            }
+            else
+            {
+                var claimsIdentity = (ClaimsIdentity)User.Identity;
+                var userId = claimsIdentity.FindFirst(ClaimTypes.NameIdentifier).Value;
+
+                objOrderHeaders = await orderHeadersService
+                    .GetAllAsync(u => u.ApplicationUserId == userId, includeProperties: "ApplicationUser");
+            }
 
             switch (status)
             {
                 case "pending":
-                    orderHeaders = orderHeaders.Where(o => o.OrderStatus == StaticDetails.PaymentStatusDelayedPayment);
+                    objOrderHeaders = objOrderHeaders.Where(u => u.PaymentStatus == StaticDetails.PaymentStatusDelayedPayment);
                     break;
                 case "inprocess":
-                    orderHeaders = orderHeaders.Where(o => o.OrderStatus == StaticDetails.StatusInProcess);
+                    objOrderHeaders = objOrderHeaders.Where(u => u.OrderStatus == StaticDetails.StatusInProcess);
                     break;
                 case "completed":
-                    orderHeaders = orderHeaders.Where(o => o.OrderStatus == StaticDetails.StatusShipped);
+                    objOrderHeaders = objOrderHeaders.Where(u => u.OrderStatus == StaticDetails.StatusShipped);
+                    break;
+                case "approved":
+                    objOrderHeaders = objOrderHeaders.Where(u => u.OrderStatus == StaticDetails.StatusApproved);
                     break;
                 case "cancelled":
-                    orderHeaders = orderHeaders.Where(o => o.OrderStatus == StaticDetails.StatusCancelled);
+                    objOrderHeaders = objOrderHeaders.Where(u => u.OrderStatus == StaticDetails.StatusCancelled);
                     break;
                 default:
                     break;
             }
-
-            return Json(new { data = orderHeaders });
+            return Json(new { data = objOrderHeaders });
         }
 
         #endregion

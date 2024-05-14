@@ -1,152 +1,36 @@
 ﻿using BookStore.BLL.DTO;
 using BookStore.BLL.DTO.Requests;
 using BookStore.BLL.IServices;
-using BookStore.DAL.Entities;
+using BookStore.BLL.Services.Singletons;
+using BookStore.Common.Exceptions;
 using BookStore.DAL.IRepositories;
-using BookStore.DAL.Repositories;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc.Rendering;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Linq.Expressions;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace BookStore.BLL.Services
 {
-    public class ProductsService(IProductsRepository productsRepository, ICategoriesRepository categoriesRepository, 
-                                 IUnitOfWork unitOfWork, IWebHostEnvironment webHostEnvironment) : IProductsService
+    public delegate void ObjectAddedEvent(int id);
+
+    public class ProductsService(IProductsRepository productsRepository, 
+                                 ICategoriesRepository categoriesRepository, 
+                                 IUnitOfWork unitOfWork, 
+                                 IWebHostEnvironment webHostEnvironment,
+                                 ICacheService cacheService) : IProductsService
     {
-        public DTO.Product Create(ProductAddEditRequestModel model)
+        public static event ObjectAddedEvent OnProductAdded;
+
+        public static event OnEntityAdded OnEntityAdded;
+        public static event OnEntityDeleted OnEntityDeleted;
+        public static event OnEntityUpdated OnEntityUpdated;
+
+        public async Task<IEnumerable<DTO.Product>> GetAllProductsWithCategoryAsync()
         {
-            var product = new DAL.Entities.Product()
+            return await cacheService.GetOrAddAsync("allProductsWithCategory", async () =>
             {
-                Title = model.Title,
-                ISBN = model.ISBN,
-                Price = model.Price,
-                Price50 = model.Price50,
-                ListPrice = model.ListPrice,
-                Price100 = model.Price100,
-                Description = model.Description,
-                CategoryId = model.CategoryId,
-                Author = model.Author,
-                ProductImages = model.ProductImages?.Select(pi => new DAL.Entities.ProductImage { ImageUrl = pi.ImageUrl }).ToList()
-            };
+                var dbProducts = await productsRepository.GetAllAsync(includeProperties: "Category");
 
-            productsRepository.Add(product);
-            unitOfWork.SaveChanges();
-
-            return GetById(product.Id);
-        }
-
-        private DTO.Product GetById(int id)
-        {
-            var dbProduct = productsRepository.Get(p => p.Id == id);
-
-            if (dbProduct == null)
-            {
-                throw new Exception("Product not found");
-            }
-
-            return new DTO.Product
-            {
-                Id = dbProduct.Id,
-                Title = dbProduct.Title,
-                ISBN = dbProduct.ISBN,
-                Price = dbProduct.Price,
-                Price50 = dbProduct.Price50,
-                ListPrice = dbProduct.ListPrice,
-                Price100 = dbProduct.Price100,
-                Description = dbProduct.Description,
-                CategoryId = dbProduct.CategoryId,
-                Author = dbProduct.Author,
-                ProductImages = dbProduct.ProductImages?.Select(pi => new DTO.ProductImage { Id = pi.Id, ImageUrl = pi.ImageUrl }).ToList()
-            };
-        }
-
-        public void Delete(int id)
-        {
-            var product = productsRepository.Get(p => p.Id == id);
-
-            if (product == null)
-            {
-                throw new Exception("Product not found");
-            }
-
-            productsRepository.Remove(product);
-            unitOfWork.SaveChanges();
-        }
-
-        public IEnumerable<DTO.Product> GetProducts()
-        {
-            var dbProducts = productsRepository.GetAll();
-
-            var result = new List<DTO.Product>();
-            foreach (var product in dbProducts)
-            {
-                result.Add(new DTO.Product
-                {
-                    Id = product.Id,
-                    Title = product.Title,
-                    ISBN = product.ISBN,
-                    Price = product.Price,
-                    Price50 = product.Price50,
-                    ListPrice = product.ListPrice,
-                    Price100 = product.Price100,
-                    Description = product.Description,
-                    CategoryId = product.CategoryId,
-                    Author = product.Author,
-                    ProductImages = product.ProductImages?.Select(pi => new DTO.ProductImage { Id = pi.Id, ImageUrl = pi.ImageUrl }).ToList()
-                });
-            }
-            return result;
-        }
-
-        public void Update(ProductAddEditRequestModel model)
-        {
-            var productToUpdate = productsRepository.Get(p => p.Id == model.Id);
-            if (productToUpdate == null)
-            {
-                throw new Exception("Product not found");
-            }
-
-            productToUpdate.Title = model.Title;
-            productToUpdate.ISBN = model.ISBN;
-            productToUpdate.Price = model.Price;
-            productToUpdate.Price50 = model.Price50;
-            productToUpdate.ListPrice = model.ListPrice;
-            productToUpdate.Price100 = model.Price100;
-            productToUpdate.Description = model.Description;
-            productToUpdate.CategoryId = model.CategoryId;
-            productToUpdate.Author = model.Author;
-            productToUpdate.ProductImages = model.ProductImages?.Select(pi => new DAL.Entities.ProductImage { ImageUrl = pi.ImageUrl }).ToList();
-
-            productsRepository.Update(productToUpdate);
-            unitOfWork.SaveChanges();
-        }
-
-        public void RemoveRange(IEnumerable<DTO.Product> products)
-        {
-            var product = productsRepository.GetAll().ToList();
-
-            if (product == null)
-            {
-                throw new Exception("Product not found");
-            }
-
-            productsRepository.RemoveRange(product);
-            unitOfWork.SaveChanges();
-        }
-
-        public IEnumerable<DTO.Product> GetAllProductsWithCategory()
-        {
-            var dbProducts = productsRepository.GetAll(includeProperties: "Category");
-
-            foreach (var product in dbProducts)
-            {
-                var productDTO = new DTO.Product
+                return dbProducts.Select(product => new DTO.Product
                 {
                     Id = product.Id,
                     CategoryId = product.CategoryId,
@@ -164,112 +48,169 @@ namespace BookStore.BLL.Services
                         Id = product.Category.Id,
                         Name = product.Category.Name
                     }
-                };
-
-                yield return productDTO;
-            }
+                });
+            });
         }
 
-        public ProductVM GetProductForUpsert(int? id)
+        public async Task<ProductViewModel> GetProductForUpsertAsync(int? id)
         {
-            var productVM = new ProductVM
+            var productVM = new ProductViewModel
             {
-                CategoryList = categoriesRepository.GetAll()
+                CategoryList = (await categoriesRepository.GetAllAsync())
                     .Select(u => new SelectListItem
                     {
                         Text = u.Name,
                         Value = u.Id.ToString()
-                    }),
-                Product = id == null || id == 0
-                    ? new DAL.Entities.Product()
-                    : unitOfWork.Products.Get(u => u.Id == id, includeProperties: "ProductImages")
+                    }).ToList()
             };
+
+            if (id == null || id == 0)
+            {
+                productVM.Product = new BLL.DTO.Product();
+            }
+            else
+            {
+                var productDAL = await unitOfWork.ProductsRepository.GetAsync(u => u.Id == id, includeProperties: "ProductImages");
+                if (productDAL != null)
+                {
+                    productVM.Product = new BLL.DTO.Product
+                    {
+                        Id = productDAL.Id,
+                        Title = productDAL.Title,
+                        Description = productDAL.Description,
+                        Price = productDAL.Price,
+                        ListPrice = productDAL.ListPrice,
+                        Price50 = productDAL.Price50,
+                        Price100 = productDAL.Price100,
+                        Author = productDAL.Author,
+                        ISBN = productDAL.ISBN,
+                        CategoryId = productDAL.CategoryId,
+                        ProductImages = productDAL.ProductImages.Select(img => new BLL.DTO.ProductImage
+                        {
+                            Id = img.Id,
+                            ImageUrl = img.ImageUrl,
+                            ProductId = img.ProductId
+                        }).ToList()
+                    };
+                }
+            }
 
             return productVM;
         }
 
-        public bool UpsertProduct(ProductVM productVM, List<IFormFile> files)
+        public async Task<bool> UpsertProductAsync(ProductViewModel productVM, List<IFormFile> files)
         {
-            if (productVM == null)
-                throw new ArgumentNullException(nameof(productVM));
-
-            if (productVM.Product == null)
-                throw new ArgumentException("Product cannot be null.");
-
-            if (string.IsNullOrEmpty(productVM.Product.Title))
-                throw new ArgumentException("Product title is required.");
-
-            if (productVM.Product.Price < 0)
-                throw new ArgumentException("Product price must be non-negative.");
-
-            if (productVM.Product.CategoryId == null)
-                throw new ArgumentException("At least one category must be selected for the product.");
+            bool isProductCreated = false;
 
             try
             {
-                bool isProductCreated = false;
+                var existingProduct = await productsRepository.GetByISBNAsync(productVM.Product.ISBN);
+                if (existingProduct != null && existingProduct.Id != productVM.Product.Id)
+                {
+                    throw new DuplicateISBNException();
+                }
+
+                var existingProductWithTitleAndAuthor = await productsRepository.GetByTitleAndAuthorAsync(productVM.Product.Title, productVM.Product.Author);
+                if (existingProductWithTitleAndAuthor != null && existingProductWithTitleAndAuthor.Id != productVM.Product.Id)
+                {
+                    throw new DuplicateTitleAndAuthorException();
+                }
+
+                var productDAL = new DAL.Entities.Product
+                {
+                    Id = productVM.Product.Id,
+                    Title = productVM.Product.Title,
+                    Description = productVM.Product.Description,
+                    Price = productVM.Product.Price,
+                    ListPrice = productVM.Product.ListPrice,
+                    Price50 = productVM.Product.Price50,
+                    Price100 = productVM.Product.Price100,
+                    Author = productVM.Product.Author,
+                    ISBN = productVM.Product.ISBN,
+                    CategoryId = productVM.Product.CategoryId,
+                    ProductImages = productVM.Product.ProductImages?.Select(img => new DAL.Entities.ProductImage
+                    {
+                        Id = img.Id,
+                        ImageUrl = img.ImageUrl,
+                        ProductId = img.ProductId
+                    }).ToList() ?? new List<DAL.Entities.ProductImage>()
+                };
 
                 if (productVM.Product.Id == 0)
                 {
-                    productsRepository.Add(productVM.Product);
+                    await productsRepository.CreateAsync(productDAL);
                     isProductCreated = true;
                 }
                 else
                 {
-                    productsRepository.Update(productVM.Product);
+                    await productsRepository.UpdateAsync(productDAL);
                 }
 
-                unitOfWork.SaveChanges();
+                await unitOfWork.SaveChangesAsync();
+                await cacheService.RemoveAsync("allProductsWithCategory");
 
-                string wwwRootPath = webHostEnvironment.WebRootPath;
+                if (isProductCreated)
+                {
+                    OnProductAdded?.Invoke(productDAL.Id);
+                    OnEntityAdded?.Invoke(new DAL.Entities.AuditLog
+                    {
+                        EntityId = productDAL.Id.ToString(),
+                        EntityName = "Product",
+                        LogType = Common.Enums.AuditLogType.Create,
+                        Details = Newtonsoft.Json.JsonConvert.SerializeObject(productDAL)
+                    });
+                }
+                else
+                {
+                    OnEntityUpdated?.Invoke(new DAL.Entities.AuditLog
+                    {
+                        EntityId = productDAL.Id.ToString(),
+                        EntityName = "Product",
+                        LogType = Common.Enums.AuditLogType.Update,
+                        Details = Newtonsoft.Json.JsonConvert.SerializeObject(productDAL)
+                    });
+                }
+
                 if (files != null && files.Any())
                 {
+                    string wwwRootPath = webHostEnvironment.WebRootPath;
+                    string productPath = Path.Combine(wwwRootPath, "images", "products", "product-" + productDAL.Id);
+                    Directory.CreateDirectory(productPath);
+
                     foreach (var file in files)
                     {
                         string fileName = Guid.NewGuid().ToString() + Path.GetExtension(file.FileName);
-                        string productPath = @"images\products\product-" + productVM.Product.Id;
-                        string finalPath = Path.Combine(wwwRootPath, productPath);
-
-                        if (!Directory.Exists(finalPath))
-                            Directory.CreateDirectory(finalPath);
-
-                        using (var fileStream = new FileStream(Path.Combine(finalPath, fileName), FileMode.Create))
+                        string filePath = Path.Combine(productPath, fileName);
+                        using (var fileStream = new FileStream(filePath, FileMode.Create))
                         {
-                            file.CopyTo(fileStream);
+                            await file.CopyToAsync(fileStream);
                         }
 
                         var productImage = new DAL.Entities.ProductImage
                         {
-                            ImageUrl = @"\" + productPath + @"\" + fileName,
-                            ProductId = productVM.Product.Id,
+                            ImageUrl = @"\images\products\product-" + productDAL.Id + @"\" + fileName,
+                            ProductId = productDAL.Id,
                         };
 
-                        if (productVM.Product.ProductImages == null)
-                            productVM.Product.ProductImages = new List<DAL.Entities.ProductImage>();
-
-                        productVM.Product.ProductImages.Add(productImage);
+                        productDAL.ProductImages.Add(productImage);
                     }
 
-                    productsRepository.Update(productVM.Product);
-                    unitOfWork.SaveChanges();
+                    await productsRepository.UpdateAsync(productDAL);
+                    await unitOfWork.SaveChangesAsync();
                 }
 
                 return isProductCreated;
             }
             catch (Exception ex)
             {
-                throw new Exception("Failed to upsert product.", ex);
+                Console.WriteLine("Error during product upsert: " + ex.Message);
+                throw;
             }
         }
 
-        public IEnumerable<DAL.Entities.Product> GetAllProducts(string includeProperties)
+        public async Task DeleteProductAsync(int id)
         {
-            return productsRepository.GetAll(includeProperties: "Category");
-        }
-
-        public void DeleteProduct(int id)
-        {
-            var productToBeDeleted = productsRepository.Get(u => u.Id == id);
+            var productToBeDeleted = await productsRepository.GetAsync(u => u.Id == id);
 
             if (productToBeDeleted == null)
             {
@@ -290,65 +231,90 @@ namespace BookStore.BLL.Services
                 Directory.Delete(finalPath);
             }
 
-            productsRepository.Remove(productToBeDeleted);
-            unitOfWork.SaveChanges();
-        }
-
-        public IEnumerable<BookStore.DAL.Entities.Product> GetAllCategoryProductImages(string includeProperties)
-        {
-            return productsRepository.GetAll(includeProperties: "Category,ProductImages");
-        }
-
-        public DAL.Entities.Product GetProductDetails(int productId, string includeProperties)
-        {
-            return productsRepository.Get(u => u.Id == productId, includeProperties);
-        }
-
-        public double CalculateTotalPrice(DAL.Entities.ShoppingCart shoppingCart)
-        {
-            // Fetch the product details
-            var product = shoppingCart.Product;
-
-            if (product == null)
+            await productsRepository.DeleteAsync(productToBeDeleted);
+            await unitOfWork.SaveChangesAsync();
+            OnEntityDeleted?.Invoke(new DAL.Entities.AuditLog
             {
-                throw new Exception("Product not found in shopping cart");
-            }
-
-            // Calculate the total price based on the quantity
-            double totalPrice = shoppingCart.Count switch
-            {
-                var count when count <= 50 => product.Price * count,
-                var count when count <= 100 => product.Price50 * count,
-                var count when count > 100 => product.Price100 * count
-            };
-
-            return totalPrice;
+                EntityId = id.ToString(),
+                EntityName = "Product",
+                Details = "Product was deleted",
+                LogType = Common.Enums.AuditLogType.Delete
+            });
+            await cacheService.RemoveAsync("allProductsWithCategory");
         }
 
-        public DAL.Entities.Product GetProductById(int productId)
+        public async Task<IEnumerable<BookStore.BLL.DTO.Product>> GetAllCategoryProductImagesAsync(string includeProperties)
         {
-            var product = productsRepository.GetProductById(productId);
+            var dbProducts = await productsRepository.GetAllAsync(includeProperties: "Category,ProductImages");
 
-            if (product == null)
-            {
-                throw new Exception("Product not found");
-            }
-
-            return new DAL.Entities.Product
+            return dbProducts.Select(product => new BookStore.BLL.DTO.Product
             {
                 Id = product.Id,
-                Title = product.Title,
-                ISBN = product.ISBN,
-                Price = product.Price,
-                Author = product.Author,
-                Category = product.Category,
                 CategoryId = product.CategoryId,
+                Title = product.Title,
+                Author = product.Author,
                 Description = product.Description,
+                ISBN = product.ISBN,
                 ListPrice = product.ListPrice,
+                Price = product.Price,
                 Price50 = product.Price50,
                 Price100 = product.Price100,
-                ProductImages = product.ProductImages,
+
+                Category = new BookStore.BLL.DTO.Category
+                {
+                    Id = product.Category.Id,
+                    Name = product.Category.Name
+                },
+                ProductImages = product.ProductImages.Select(image => new BookStore.BLL.DTO.ProductImage
+                {
+                    Id = image.Id,
+                    ImageUrl = image.ImageUrl,
+                    ProductId = image.ProductId
+                }).ToList()
+            }).ToList();
+        }
+
+        public async Task<BLL.DTO.Product> GetProductDetailsAsync(int productId, string includeProperties)
+        {
+            var dbProduct = await productsRepository.GetAsync(u => u.Id == productId, includeProperties);
+
+            return new BLL.DTO.Product
+            {
+                Id = dbProduct.Id,
+                CategoryId = dbProduct.CategoryId,
+                Title = dbProduct.Title,
+                Author = dbProduct.Author,
+                Description = dbProduct.Description,
+                ISBN = dbProduct.ISBN,
+                ListPrice = dbProduct.ListPrice,
+                Price = dbProduct.Price,
+                Price50 = dbProduct.Price50,
+                Price100 = dbProduct.Price100,
+
+                Category = new BLL.DTO.Category
+                {
+                    Id = dbProduct.Category.Id,
+                    Name = dbProduct.Category.Name
+                },
+                ProductImages = dbProduct.ProductImages.Select(image => new BLL.DTO.ProductImage
+                {
+                    Id = image.Id,
+                    ImageUrl = image.ImageUrl,
+                    ProductId = image.ProductId
+                }).ToList()
             };
+        }
+
+        public async Task<IEnumerable<DTO.Category>> GetAllCategoriesAsync()
+        {
+            var categories = await categoriesRepository.GetAllAsync();
+            return categories.Select(c => new DTO.Category
+            {
+                Id = c.Id,
+                Name = c.Name,
+                Description = c.Description,
+                DisplayOrder = c.DisplayOrder
+            });
         }
     }
 }

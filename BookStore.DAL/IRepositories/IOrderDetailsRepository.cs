@@ -8,13 +8,8 @@ using System.Threading.Tasks;
 
 namespace BookStore.DAL.IRepositories
 {
-    public interface IOrderDetailsRepository
+    public interface IOrderDetailsRepository : IBaseRepository<OrderDetail, int>
     {
-        void Update(OrderDetail orderDetail);
-        IEnumerable<OrderDetail> GetAll(Expression<Func<OrderDetail, bool>>? filter = null, string? includeProperties = null);
-        OrderDetail Get(Expression<Func<OrderDetail, bool>> filter, string? includeProperties = null, bool tracked = false);
-        void Add(OrderDetail orderDetail);
-        void Remove(OrderDetail orderDetail);
-        void RemoveRange(IEnumerable<OrderDetail> orderDetails);
+        Task<OrderDetail> GetAsync(Expression<Func<OrderDetail, bool>> filter, string? includeProperties = null, bool tracked = false);
     }
 }

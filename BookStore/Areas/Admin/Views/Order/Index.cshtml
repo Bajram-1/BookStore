@@ -4,6 +4,7 @@
     var inprocess = "text-primary";
     var completed = "text-primary";
     var approved = "text-primary";
+    var cancelled = "text-primary";
     var all = "text-primary";
 
     switch (status)
@@ -19,6 +20,9 @@
             break;
         case "approved":
             approved = "active text-white bg-primary";
+            break;
+        case "cancelled":
+            cancelled = "active text-white bg-primary";
             break;
         default:
             all = "active text-white bg-primary";
@@ -50,6 +54,9 @@
                 <a style="text-decoration: none;" asp-controller="Order" asp-action="Index" asp-route-status="approved">
                 <li class="list-group-item @approved">Approved</li>
                 </a>
+                <a style="text-decoration: none;" asp-controller="Order" asp-action="Index" asp-route-status="cancelled">
+                <li class="list-group-item @cancelled">Cancelled</li>
+                </a>
                 <a style="text-decoration: none;" asp-controller="Order" asp-action="Index" asp-route-status="all">
                 <li class="list-group-item @all">All</li>
                 </a>
@@ -62,6 +69,7 @@
                     <th>Name</th>
                     <th>Phone Number</th>
                     <th>Email</th>
+                    <th>Shipment Date</th>
                     <th>Status</th>
                     <th>Total</th>
                     <th></th>
@@ -73,4 +81,13 @@
 
 @section Scripts {
     <script src="~/js/order.js"></script>
+    <script type="text/javascript" src="https://cdn.datatables.net/1.10.23/js/jquery.dataTables.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.26.0/moment.min.js"></script>
+    <script src="https://cdn.datatables.net/plug-ins/1.10.21/dataRender/datetime.js"></script>
+    <!-- Bootstrap JS -->
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/js/bootstrap.min.js"></script>
+    <!-- DataTables JS -->
+    <script type="text/javascript" src="https://cdn.datatables.net/1.10.23/js/dataTables.bootstrap.min.js"></script>
+    <!-- DataTables CSS -->
+    <link rel="stylesheet" type="text/css" href="https://cdn.datatables.net/1.10.23/css/dataTables.bootstrap.min.css" />
 }

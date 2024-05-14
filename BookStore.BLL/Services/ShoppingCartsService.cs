@@ -1,5 +1,4 @@
 ﻿using BookStore.BLL.DTO;
-using BookStore.BLL.DTO.Requests;
 using BookStore.BLL.IServices;
 using BookStore.Common;
 using BookStore.DAL.Entities;
@@ -8,58 +7,31 @@ using BookStore.DAL.Repositories;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.UI.Services;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Stripe.Checkout;
-using System;
-using System.Collections.Generic;
-using System.Linq;
 using System.Linq.Expressions;
-using System.Security.Claims;
 
 namespace BookStore.BLL.Services
 {
-    public class ShoppingCartsService : IShoppingCartsService
+    public class ShoppingCartsService(IShoppingCartsRepository shoppingCartsRepository,
+                                      IUnitOfWork unitOfWork,
+                                      IHttpContextAccessor httpContextAccessor) : IShoppingCartsService
     {
-        private readonly IApplicationUsersService _applicationUsersService;
-        private readonly IOrderHeadersService _orderHeadersService;
-        private readonly IOrderDetailsService _orderDetailsService;
-        private readonly IOrderHeadersRepository _orderHeadersRepository;
-        private readonly IShoppingCartsRepository _shoppingCartsRepository;
-        private readonly IProductsService _productsService;
-        private readonly IEmailSender _emailSender;
-        private readonly IUnitOfWork _unitOfWork;
-        private readonly IHttpContextAccessor _httpContextAccessor;
+        public static event OnEntityAdded OnShoppingCartAdded;
 
-        public ShoppingCartsService(IApplicationUsersService applicationUsersService,
-                                    IOrderHeadersService orderHeadersService,
-                                    IOrderDetailsService orderDetailsService,
-                                    IProductsService productsService,
-                                    IOrderHeadersRepository orderHeadersRepository,
-                                    IShoppingCartsRepository shoppingCartsRepository,
-                                    IEmailSender emailSender,
-                                    IUnitOfWork unitOfWork,
-                                    IHttpContextAccessor httpContextAccessor)
+        [BindProperty]
+        public ShoppingCartViewModel ShoppingCartVM { get; set; }
+
+        public async Task<int> GetCartItemCountAsync(string userId)
         {
-            _applicationUsersService = applicationUsersService;
-            _orderHeadersService = orderHeadersService;
-            _orderDetailsService = orderDetailsService;
-            _productsService = productsService;
-            _orderHeadersRepository = orderHeadersRepository;
-            _shoppingCartsRepository = shoppingCartsRepository;
-            _emailSender = emailSender;
-            _unitOfWork = unitOfWork;
-            _httpContextAccessor = httpContextAccessor;
+            return await shoppingCartsRepository.GetCartItemCountAsync(userId);
         }
 
-        public int GetCartItemCount(string userId)
+        public async Task<DAL.Entities.ShoppingCart> GetAsync(Expression<Func<BookStore.DAL.Entities.ShoppingCart, bool>> filter)
         {
-            return _shoppingCartsRepository.GetCartItems(userId).Sum(item => item.Count);
-        }
-
-        public DTO.ShoppingCart Get(Expression<Func<BookStore.DAL.Entities.ShoppingCart, bool>> filter)
-        {
-            var dbCart = _shoppingCartsRepository.Get(filter) ?? throw new Exception("Cart not found");
-            return new DTO.ShoppingCart
+            var dbCart = await shoppingCartsRepository.GetAsync(filter) ?? throw new Exception("Cart not found");
+            return new DAL.Entities.ShoppingCart
             {
                 Id = dbCart.Id,
                 ApplicationUserId = dbCart.ApplicationUserId,
@@ -69,330 +41,168 @@ namespace BookStore.BLL.Services
             };
         }
 
-        public DTO.ShoppingCart Create(ShoppingCartAddEditRequestModel model)
+        public async Task DeleteAsync(int id)
         {
-            var shoppingCart = new DAL.Entities.ShoppingCart
-            {
-                Id = model.Id,
-                ApplicationUserId = model.ApplicationUserId,
-                ProductId = model.ProductId,
-                Count = model.Count,
-                Price = model.Price
-            };
-
-            var productWithPrice = _productsService.GetProductById(model.ProductId);
-            if (productWithPrice == null)
-            {
-                throw new Exception("Product not found");
-            }
-
-            shoppingCart.Price = productWithPrice.Price * model.Count;
-
-            _shoppingCartsRepository.Add(shoppingCart);
-            _unitOfWork.SaveChanges();
-
-            return GetById(shoppingCart.Id);
-        }
-
-
-        private DTO.ShoppingCart GetById(int id)
-        {
-            var dbShoppingCart = _shoppingCartsRepository.Get(s => s.Id == id);
-
-            if (dbShoppingCart == null)
-            {
-                throw new Exception("Shopping cart item not found");
-            }
-
-            return new DTO.ShoppingCart
-            {
-                Id = dbShoppingCart.Id,
-                ApplicationUserId = dbShoppingCart.ApplicationUserId,
-                ProductId = dbShoppingCart.ProductId,
-                Count = dbShoppingCart.Count
-            };
-        }
-
-        public void Delete(int id)
-        {
-            var shoppingCartItem = _shoppingCartsRepository.Get(s => s.Id == id);
+            var shoppingCartItem = await shoppingCartsRepository.GetAsync(s => s.Id == id);
 
             if (shoppingCartItem == null)
             {
                 throw new Exception("Shopping cart item not found");
             }
 
-            _shoppingCartsRepository.Remove(shoppingCartItem);
-            _unitOfWork.SaveChanges();
+            await shoppingCartsRepository.DeleteAsync(shoppingCartItem);
+            await unitOfWork.SaveChangesAsync();
         }
 
-        public IEnumerable<DTO.ShoppingCart> GetCartItems(string userId)
+        public async Task UpdateCartAsync(DTO.ShoppingCart shoppingCartDTO, string userId)
         {
-            var dbShoppingCartItems = _shoppingCartsRepository.GetCartItems(userId);
-
-            var result = new List<DTO.ShoppingCart>();
-            foreach (var shoppingCartItem in dbShoppingCartItems)
-            {
-
-                result.Add(new DTO.ShoppingCart
-                {
-                    Id = shoppingCartItem.Id,
-                    ApplicationUserId = shoppingCartItem.ApplicationUserId,
-                    ProductId = shoppingCartItem.ProductId,
-                    Count = shoppingCartItem.Count,
-                    Price = shoppingCartItem.Product.Price
-            });
-            }
-            return result;
-        }
-
-        public void Update(DTO.ShoppingCart model)
-        {
-            var shoppingCartItemToUpdate = _shoppingCartsRepository.Get(s => s.Id == model.Id);
-            if (shoppingCartItemToUpdate == null)
-            {
-                throw new Exception("Shopping cart item not found");
-            }
-
-            shoppingCartItemToUpdate.Count = model.Count;
-
-            _unitOfWork.SaveChanges();
-        }
-
-        public void RemoveRange(IEnumerable<DTO.ShoppingCart> cartItems)
-        {
-            var shoppingCartItems = _shoppingCartsRepository.GetAll().ToList();
-
-            if (shoppingCartItems == null)
-            {
-                throw new Exception("Shopping cart items not found");
-            }
-
-            _shoppingCartsRepository.RemoveRange(shoppingCartItems);
-            _unitOfWork.SaveChanges();
-        }
-
-        public IEnumerable<DTO.ShoppingCart> GetAll(Expression<Func<DAL.Entities.ShoppingCart, bool>> filter = null, string includeProperties = null)
-        {
-            IQueryable<DAL.Entities.ShoppingCart> query = _shoppingCartsRepository.GetAll().AsQueryable();
-
-            if (filter != null)
-            {
-                query = query.Where(filter);
-            }
-
-            if (!string.IsNullOrEmpty(includeProperties))
-            {
-                if (includeProperties == "Product")
-                {
-                    query = query.Include(u => u.Product);
-                }
-            }
-
-            return query.Select(shoppingCart => new DTO.ShoppingCart
-            {
-                Id = shoppingCart.Id,
-                ApplicationUserId = shoppingCart.ApplicationUserId,
-                ProductId = shoppingCart.ProductId,
-                Count = shoppingCart.Count
-            }).ToList();
-        }
-
-        public void UpdateCart(DAL.Entities.ShoppingCart shoppingCart, string userId)
-        {
-            shoppingCart.ApplicationUserId = userId;
-
-            var cartFromDb = _shoppingCartsRepository.Get(u => u.ApplicationUserId == userId && u.ProductId == shoppingCart.ProductId);
+            var cartFromDb = await shoppingCartsRepository.GetAsync(
+                u => u.ApplicationUserId == userId && u.ProductId == shoppingCartDTO.ProductId,
+                includeProperties: "Product"
+            );
 
             if (cartFromDb != null)
             {
-                cartFromDb.Count += shoppingCart.Count;
-                _shoppingCartsRepository.Update(cartFromDb);
-                _unitOfWork.SaveChanges();
+                cartFromDb.Count += shoppingCartDTO.Count;
+
+                var productDescription = cartFromDb.Product.Description;
+                var productTitle = cartFromDb.Product.Title;
+
+                await shoppingCartsRepository.UpdateAsync(cartFromDb);
+                await unitOfWork.SaveChangesAsync();
             }
             else
             {
-                _shoppingCartsRepository.Add(shoppingCart);
-                _unitOfWork.SaveChanges();
+                var shoppingCartEntity = new DAL.Entities.ShoppingCart
+                {
+                    ProductId = shoppingCartDTO.ProductId,
+                    Count = shoppingCartDTO.Count,
+                    Price = shoppingCartDTO.Price,
+                    ApplicationUserId = userId,
+                };
 
-                var sessionCartCount = _shoppingCartsRepository.GetAll(u => u.ApplicationUserId == userId).Count();
-                _httpContextAccessor.HttpContext.Session.SetInt32(StaticDetails.SessionCart, sessionCartCount);
+                await shoppingCartsRepository.CreateAsync(shoppingCartEntity);
+                await unitOfWork.SaveChangesAsync();
+
+                var shoppingCarts = await shoppingCartsRepository.GetAllAsync(u => u.ApplicationUserId == userId);
+                var sessionCartCount = shoppingCarts.Count();
+                httpContextAccessor.HttpContext.Session.SetInt32(StaticDetails.SessionCart, sessionCartCount);
             }
         }
 
-        public void ProcessOrder(string userId, ShoppingCartVM shoppingCartVM)
+        public async Task DecreaseItemCountAsync(int cartId)
         {
-            shoppingCartVM.ShoppingCartList = GetCartItems(userId);
-            shoppingCartVM.OrderHeader.OrderDate = DateTime.Now;
-            shoppingCartVM.OrderHeader.ApplicationUserId = userId;
-
-            var applicationUser = _applicationUsersService.Get(u => u.Id == userId);
-
-            foreach (var cart in shoppingCartVM.ShoppingCartList)
-            {
-                cart.Price = GetPriceBasedOnQuantity(cart);
-                shoppingCartVM.OrderHeader.OrderTotal += (cart.Price * cart.Count);
-            }
-
-            if (applicationUser.CompanyId.GetValueOrDefault() == 0)
-            {
-                shoppingCartVM.OrderHeader.PaymentStatus = StaticDetails.PaymentStatusPending;
-                shoppingCartVM.OrderHeader.OrderStatus = StaticDetails.StatusPending;
-            }
-            else
-            {
-                shoppingCartVM.OrderHeader.PaymentStatus = StaticDetails.PaymentStatusDelayedPayment;
-                shoppingCartVM.OrderHeader.OrderStatus = StaticDetails.StatusApproved;
-            }
-
-            _orderHeadersService.Add(shoppingCartVM.OrderHeader);
-
-            foreach (var cart in shoppingCartVM.ShoppingCartList)
-            {
-                var orderDetail = new DAL.Entities.OrderDetail
-                {
-                    ProductId = cart.ProductId,
-                    OrderHeaderId = shoppingCartVM.OrderHeader.Id,
-                    Price = cart.Price,
-                    Count = cart.Count
-                };
-                _orderDetailsService.AddOrderDetail(orderDetail);
-            }
-
-            if (applicationUser.CompanyId.GetValueOrDefault() == 0)
-            {
-                var domain = _httpContextAccessor.HttpContext.Request.Scheme + "://" + _httpContextAccessor.HttpContext.Request.Host.Value + "/";
-                var options = new SessionCreateOptions
-                {
-                    SuccessUrl = domain + $"customer/cart/OrderConfirmation?id={shoppingCartVM.OrderHeader.Id}",
-                    CancelUrl = domain + "customer/cart/index",
-                    LineItems = new List<SessionLineItemOptions>(),
-                    Mode = "payment",
-                };
-
-                foreach (var item in shoppingCartVM.ShoppingCartList)
-                {
-                    var sessionLineItem = new SessionLineItemOptions
-                    {
-                        PriceData = new SessionLineItemPriceDataOptions
-                        {
-                            UnitAmount = (long)(item.Price * 100),
-                            Currency = "usd",
-                            ProductData = new SessionLineItemPriceDataProductDataOptions
-                            {
-                                Name = item.Product.Title
-                            }
-                        },
-                        Quantity = item.Count
-                    };
-                    options.LineItems.Add(sessionLineItem);
-                }
-
-                var service = new SessionService();
-                Session session = service.Create(options);
-                _orderHeadersService.UpdateStripePaymentID(shoppingCartVM.OrderHeader.Id, session.Id, session.PaymentIntentId);
-            }
-
-            _unitOfWork.SaveChanges();
-        }
-
-        public void DecreaseItemCount(int cartId)
-        {
-            var cartFromDb = _shoppingCartsRepository.Get(u => u.Id == cartId);
+            var cartFromDb = await shoppingCartsRepository.GetAsync(u => u.Id == cartId);
 
             if (cartFromDb.Count <= 1)
             {
-                _shoppingCartsRepository.Remove(cartFromDb);
+                await shoppingCartsRepository.DeleteAsync(cartFromDb);
 
-                _httpContextAccessor.HttpContext.Session.SetInt32(StaticDetails.SessionCart, _shoppingCartsRepository
-                    .GetAll(u => u.ApplicationUserId == cartFromDb.ApplicationUserId).Count() - 1);
+                var shoppingCarts = await shoppingCartsRepository.GetAllAsync(u => u.ApplicationUserId == cartFromDb.ApplicationUserId);
+                var newCartCount = shoppingCarts.Count() - 1;
+
+                httpContextAccessor.HttpContext.Session.SetInt32(StaticDetails.SessionCart, newCartCount);
             }
             else
             {
                 cartFromDb.Count -= 1;
-                _shoppingCartsRepository.Update(cartFromDb);
+                await shoppingCartsRepository.UpdateAsync(cartFromDb);
             }
 
-            _unitOfWork.SaveChanges();
+            await unitOfWork.SaveChangesAsync();
         }
 
-        public void AddCartItem(int cartId)
+        public async Task AddCartItemAsync(int cartId)
         {
-            var cartFromDb = _shoppingCartsRepository.Get(u => u.Id == cartId);
+            var cartFromDb = await shoppingCartsRepository.GetAsync(u => u.Id == cartId);
             if (cartFromDb == null)
             {
                 throw new Exception("Shopping cart item not found");
             }
 
             cartFromDb.Count += 1;
-            _shoppingCartsRepository.Update(cartFromDb);
-            _unitOfWork.SaveChanges();
+            await shoppingCartsRepository.UpdateAsync(cartFromDb);
+            await unitOfWork.SaveChangesAsync();
+            OnShoppingCartAdded?.Invoke(new DAL.Entities.AuditLog
+            {
+                Details = Newtonsoft.Json.JsonConvert.SerializeObject(cartFromDb),
+                EntityId = cartFromDb.Id.ToString(),
+                EntityName = "ShoppingCarts",
+                LogType = Common.Enums.AuditLogType.Create,
+            });
         }
 
-        public int DeleteItem(int id)
+        public async Task<List<BLL.DTO.ShoppingCart>> GetAllAsync(Expression<Func<DAL.Entities.ShoppingCart, bool>> filter)
         {
-            var shoppingCartItem = _shoppingCartsRepository.Get(s => s.Id == id);
+            var dalShoppingCarts = await shoppingCartsRepository.GetAllAsync(filter);
 
-            if (shoppingCartItem == null)
+            var dtoShoppingCarts = dalShoppingCarts.Select(cart => new BLL.DTO.ShoppingCart
             {
-                throw new Exception("Shopping cart item not found");
-            }
+                Id = cart.Id,
+                ApplicationUserId = cart.ApplicationUserId,
+                ProductId = cart.ProductId,
+                Count = cart.Count,
+                Price = cart.Price
+            }).ToList();
 
-            _shoppingCartsRepository.Remove(shoppingCartItem);
-            _unitOfWork.SaveChanges();
-
-            return GetAll().Count();
+            return dtoShoppingCarts;
         }
 
-        public void ProcessOrderConfirmation(int orderId)
+        public async Task RemoveRangeAsync(List<BLL.DTO.ShoppingCart> shoppingCarts)
         {
-            var orderHeader = _orderHeadersRepository.GetItem(orderId, includeProperties: "ApplicationUser");
-
-            if (orderHeader.PaymentStatus != StaticDetails.PaymentStatusDelayedPayment)
+            var dalShoppingCarts = shoppingCarts.Select(cart => new DAL.Entities.ShoppingCart
             {
-                var service = new SessionService();
-                Session session = service.Get(orderHeader.SessionId);
+                Id = cart.Id,
+                ApplicationUserId = cart.ApplicationUserId,
+                ProductId = cart.ProductId,
+                Count = cart.Count,
+                Price = cart.Price
+            }).ToList();
 
-                if (session.PaymentStatus.ToLower() == "paid")
-                {
-                    orderHeader.StripePaymentId = session.Id;
-                    orderHeader.PaymentIntentId = session.PaymentIntentId;
-                    orderHeader.Status = StaticDetails.StatusApproved;
-                    orderHeader.PaymentStatus = StaticDetails.PaymentStatusApproved;
-                    _unitOfWork.SaveChanges();
-                }
-
-                _httpContextAccessor.HttpContext.Session.Clear();
-            }
-
-            _emailSender.SendEmailAsync(orderHeader.ApplicationUser.Email, "New Order - Bulky Book",
-                $"<p>New Order Created - {orderHeader.Id}</p>");
-
-            var shoppingCarts = _shoppingCartsRepository.GetAll(u => u.ApplicationUserId == orderHeader.ApplicationUserId).ToList();
-
-            foreach (var shoppingCart in shoppingCarts)
-            {
-                _shoppingCartsRepository.Remove(shoppingCart);
-            }
-            _unitOfWork.SaveChanges();
+            await shoppingCartsRepository.RemoveRangeAsync(dalShoppingCarts);
+            await unitOfWork.SaveChangesAsync();
         }
 
-        public double GetPriceBasedOnQuantity(BLL.DTO.ShoppingCart shoppingCart)
+        public async Task<IEnumerable<BLL.DTO.ShoppingCart>> GetShoppingCartsByUserIdAsync(Expression<Func<DAL.Entities.ShoppingCart, bool>> predicate, string includeProperties = "Product")
         {
-            if (shoppingCart.Count <= 50)
+            try
             {
-                return shoppingCart.Product.Price;
+                var shoppingCarts = await shoppingCartsRepository.GetAllAsync(predicate, includeProperties: "Product") ?? Enumerable.Empty<DAL.Entities.ShoppingCart>();
+
+#pragma warning disable CS8601
+                var shoppingCartDTOs = shoppingCarts.Select(cart => new BLL.DTO.ShoppingCart
+                {
+                    Id = cart.Id,
+                    ApplicationUserId = cart.ApplicationUserId,
+                    ProductId = cart.Product.Id,
+                    Count = cart.Count,
+                    Price = cart.Product.Price,
+                    Product = cart.Product != null ? new BLL.DTO.Product
+                    {
+                        Id = cart.Product.Id,
+                        Title = cart.Product.Title,
+                        Author = cart.Product.Author,
+                        ListPrice = cart.Product.ListPrice,
+                        Price = cart.Product.Price,
+                        Price50 = cart.Product.Price50,
+                        Price100 = cart.Product.Price100,
+                        Description = cart.Product.Description,
+                        ISBN = cart.Product.ISBN,
+                        CategoryId = cart.Product.CategoryId,
+                        ProductImages = cart.Product.ProductImages?.Select(img => new DTO.ProductImage
+                        {
+                            Id = img.Id,
+                            ImageUrl = img.ImageUrl
+                        }).ToList() ?? new List<DTO.ProductImage>()
+                    } : null
+                }).ToList();
+#pragma warning restore CS8601
+
+                return shoppingCartDTOs;
             }
-            else
+            catch (Exception ex)
             {
-                if (shoppingCart.Count <= 100)
-                {
-                    return shoppingCart.Product.Price50;
-                }
-                else
-                {
-                    return shoppingCart.Product.Price100;
-                }
+                throw new ApplicationException("Failed to retrieve shopping carts", ex);
             }
         }
     }

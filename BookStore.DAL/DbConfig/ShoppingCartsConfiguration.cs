@@ -15,24 +15,25 @@ namespace BookStore.DAL.DbConfig
         {
             builder.ToTable("ShoppingCarts");
 
-            builder.HasKey(sc => sc.Id);
-
             builder.Property(sc => sc.ProductId)
-                .IsRequired();
+                   .IsRequired();
 
             builder.Property(sc => sc.Count)
-                .IsRequired();
+                   .IsRequired();
 
             builder.Property(sc => sc.ApplicationUserId)
-                .IsRequired();
+                   .IsRequired();
+
+            builder.Property(sc => sc.Price)
+                   .HasPrecision(18, 2);
 
             builder.HasOne(sc => sc.Product)
-                .WithOne()
-                .HasForeignKey<ShoppingCart>(sc => sc.ProductId);
+                   .WithMany()
+                   .HasForeignKey(sc => sc.ProductId);
 
             builder.HasOne(sc => sc.ApplicationUser)
-                .WithOne()
-                .HasForeignKey<ShoppingCart>(sc => sc.ApplicationUserId);
+                   .WithMany()
+                   .HasForeignKey(sc => sc.ApplicationUserId);
         }
     }
 }

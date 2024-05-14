@@ -8,9 +8,8 @@ using System.Threading.Tasks;
 
 namespace BookStore.DAL.Entities
 {
-    public class Category
+    public class Category : BaseEntityWithKey
     {
-        public int Id { get; set; }
         public string Name { get; set; }
         public string? Description { get; set; }
         public int DisplayOrder { get; set; }

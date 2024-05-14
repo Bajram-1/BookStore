@@ -13,15 +13,22 @@ namespace BookStore.BLL.DTO.Requests
     {
         [Required]
         public int Id { get; set; }
-        [Required]
-        [StringLength(30, ErrorMessage = "Category Name must be less than or equal to 30 characters")]
-        [DisplayName("Category Name")]
+
+        [Required(ErrorMessage = "Category name is required.")]
+        [StringLength(50, ErrorMessage = "Category name must be less than 50 characters.")]
+        [RegularExpression(@"^[a-zA-Z\s]+$", ErrorMessage = "Category name should only contain letters and spaces.")]
         public string Name { get; set; }
 
+        [MaxLength(500, ErrorMessage = "Description cannot exceed 500 characters.")]
         public string? Description { get; set; }
 
-        [DisplayName("Display Order")]
-        [Range(1, 100, ErrorMessage = "Display Order must be between 1-100")]
-        public int DisplayOrder { get; set; }
+        private int _displayOrder;
+
+        [Range(1, int.MaxValue, ErrorMessage = "Display Order must be a positive number.")]
+        public int DisplayOrder
+        {
+            get { return _displayOrder; }
+            set { _displayOrder = value > 0 ? value : 1; }
+        }
     }
 }

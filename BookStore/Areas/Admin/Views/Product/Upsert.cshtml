@@ -1,4 +1,4 @@
-﻿@model ProductVM
+﻿@model ProductViewModel
 
 <div class="card shadow border-0 my-4">
     <div class="card-header bg-secondary bg-gradient ml-0 py-3">
@@ -10,59 +10,60 @@
     </div>
     <div class="card-body p-4">
         <form method="post" class="row" enctype="multipart/form-data">
+            @Html.ValidationSummary(true, "", new { @class = "text-danger" })
             <input asp-for="Product.Id" hidden />
             <div class="row">
                 <div class="col-10">
                     <div class="border p-3">
                         <div class="form-floating py-2 col-12">
                             <input asp-for="Product.Title" class="form-control border-0 shadow" />
-                            <label asp-for="Product.Title" class="ms-2"></label>
+                            <label asp-for="Product.Title" class="ms-2">Title</label>
                             <span asp-validation-for="Product.Title" class="text-danger"></span>
                         </div>
                         <div class="py-2 col-12">
-                            <label asp-for="Product.Description" class="ms-2 text-muted"></label>
+                            <label asp-for="Product.Description" class="ms-2 text-muted">Description</label>
                             <textarea asp-for="Product.Description" class="form-control border-0 shadow"></textarea>
                         </div>
                         <div class="form-floating py-2 col-12">
                             <input asp-for="Product.ISBN" class="form-control border-0 shadow" />
-                            <label asp-for="Product.ISBN" class="ms-2"></label>
+                            <label asp-for="Product.ISBN" class="ms-2">ISBN</label>
                             <span asp-validation-for="Product.ISBN" class="text-danger"></span>
                         </div>
                         <div class="form-floating py-2 col-12">
                             <input asp-for="Product.Author" class="form-control border-0 shadow" />
-                            <label asp-for="Product.Author" class="ms-2"></label>
+                            <label asp-for="Product.Author" class="ms-2">Author</label>
                             <span asp-validation-for="Product.Author" class="text-danger"></span>
                         </div>
                         <div class="form-floating py-2 col-12">
                             <input asp-for="Product.ListPrice" class="form-control border-0 shadow" />
-                            <label asp-for="Product.ListPrice" class="ms-2"></label>
+                            <label asp-for="Product.ListPrice" class="ms-2">List Price</label>
                             <span asp-validation-for="Product.ListPrice" class="text-danger"></span>
                         </div>
                         <div class="form-floating py-2 col-12">
                             <input asp-for="Product.Price" class="form-control border-0 shadow" />
-                            <label asp-for="Product.Price" class="ms-2"></label>
+                            <label asp-for="Product.Price" class="ms-2">Price (1 - 50 books)</label>
                             <span asp-validation-for="Product.Price" class="text-danger"></span>
                         </div>
                         <div class="form-floating py-2 col-12">
                             <input asp-for="Product.Price50" class="form-control border-0 shadow" />
-                            <label asp-for="Product.Price50" class="ms-2"></label>
+                            <label asp-for="Product.Price50" class="ms-2">Price 50 (51 - 100 books)</label>
                             <span asp-validation-for="Product.Price50" class="text-danger"></span>
                         </div>
                         <div class="form-floating py-2 col-12">
                             <input asp-for="Product.Price100" class="form-control border-0 shadow" />
-                            <label asp-for="Product.Price100" class="ms-2"></label>
+                            <label asp-for="Product.Price100" class="ms-2">Price 100 (more than 100 books)</label>
                             <span asp-validation-for="Product.Price100" class="text-danger"></span>
                         </div>
                         <div class="form-floating py-2 col-12">
                             <select asp-for="@Model.Product.CategoryId" asp-items="@Model.CategoryList" class="form-select border-0 shadow">
                                 <option disabled selected>--Select Category--</option>
                             </select>
-                            <label asp-for="Product.CategoryId" class="ms-2"></label>
+                            <label asp-for="Product.CategoryId" class="ms-2">Category</label>
                             <span asp-validation-for="Product.CategoryId" class="text-danger"></span>
                         </div>
                         <div class="form-floating py-2 col-12">
                             <input type="file" name="files" class="form-control border-0 shadow" multiple />
-                            <label asp-for="Product.ProductImages" class="ms-2"></label>
+                            <label asp-for="Product.ProductImages" class="ms-2">Product Images</label>
                         </div>
                         <div class="row pt-2">
                             <div class="col-6 col-md-3">
@@ -112,10 +113,80 @@
     <script>
         tinymce.init({
             selector: 'textarea',
-            plugins: 'anchor autolink charmap codesample emoticons  lists   table visualblocks wordcount',
-            toolbar: 'undo redo | blocks fontfamily fontsize | bold italic underline strikethrough |  align lineheight | numlist bullist indent outdent',
+            plugins: 'anchor autolink charmap codesample emoticons lists table visualblocks wordcount',
+            toolbar: 'undo redo | blocks fontfamily fontsize | bold italic underline strikethrough | align lineheight | numlist bullist indent outdent',
+        });
+
+        document.addEventListener("DOMContentLoaded", function () {
+            const listPriceInput = document.getElementById('Product_ListPrice');
+            const priceInput = document.getElementById('Product_Price');
+            const price50Input = document.getElementById('Product_Price50');
+            const price100Input = document.getElementById('Product_Price100');
+            const priceValidationMessage = document.createElement('span');
+            priceValidationMessage.className = 'text-danger';
+            priceInput.parentNode.appendChild(priceValidationMessage);
+
+            function validatePriceNotGreaterThanListPrice() {
+                const listPrice = parseFloat(listPriceInput.value) || 0;
+                const price = parseFloat(priceInput.value) || 0;
+                if (price > listPrice) {
+                    priceValidationMessage.textContent = "The price must not exceed the list price.";
+                    priceInput.setCustomValidity("The price must not exceed the list price.");
+                } else {
+                    priceInput.setCustomValidity("");
+                    priceValidationMessage.textContent = "";
+                }
+            }
+
+            function calculateDiscountedPrices() {
+                const listPrice = parseFloat(listPriceInput.value) || 0;
+                price50Input.value = (listPrice * 0.90).toFixed(1);
+                price50Input.setAttribute('readonly', true);
+                price100Input.value = (listPrice * 0.85).toFixed(1);
+                price100Input.setAttribute('readonly', true);
+            }
+
+            listPriceInput.addEventListener('input', function () {
+                validatePriceNotGreaterThanListPrice();
+                calculateDiscountedPrices();
+            });
+            priceInput.addEventListener('input', validatePriceNotGreaterThanListPrice);
+
+            validatePriceNotGreaterThanListPrice();
+            calculateDiscountedPrices();
+        });
+
+        $(document).ready(function () {
+            $('form').validate({
+                errorElement: 'span',
+                errorClass: 'help-block',
+                highlight: function (element, errorClass, validClass) {
+                    $(element).parents(".form-group").addClass("has-error").removeClass("has-success");
+                },
+                unhighlight: function (element, errorClass, validClass) {
+                    $(element).parents(".form-group").removeClass("has-error").addClass("has-success");
+                },
+                errorPlacement: function (error, element) {
+                    if (element.parent('.input-group').length) {
+                        error.insertAfter(element.parent());
+                    } else {
+                        error.insertAfter(element);
+                    }
+                }
+            });
+
+            $('form').on('submit', function (event) {
+                if (!$(this).valid()) {
+                    event.preventDefault();
+                }
+            });
         });
     </script>
+
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery-validate/1.19.2/jquery.validate.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery-validation-unobtrusive/3.2.12/jquery.validate.unobtrusive.min.js"></script>
+
     @{
         <partial name="_ValidationScriptsPartial" />
     }

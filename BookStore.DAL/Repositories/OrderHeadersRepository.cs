@@ -10,18 +10,17 @@ using System.Threading.Tasks;
 
 namespace BookStore.DAL.Repositories
 {
-    public class OrderHeadersRepository(ApplicationDbContext applicationDbContext) : IOrderHeadersRepository
+    public class OrderHeadersRepository(ApplicationDbContext applicationDbContext) : BaseRepository<OrderHeader, int>(applicationDbContext), IOrderHeadersRepository
     {
-        private readonly DbSet<OrderHeader> _dbSet = applicationDbContext.Set<OrderHeader>();
-
-        public void Update(OrderHeader obj)
+        public async Task UpdateAsync(OrderHeader obj)
         {
             _dbSet.Update(obj);
+            await Task.CompletedTask;
         }
 
-        public void UpdateStatus(int id, string orderStatus, string? paymentStatus = null)
+        public async Task UpdateStatusAsync(int id, string orderStatus, string? paymentStatus = null)
         {
-            var orderFromDb = _dbSet.FirstOrDefault(u => u.Id == id);
+            var orderFromDb = await _dbSet.FirstOrDefaultAsync(u => u.Id == id);
             if (orderFromDb != null)
             {
                 orderFromDb.OrderStatus = orderStatus;
@@ -32,76 +31,7 @@ namespace BookStore.DAL.Repositories
             }
         }
 
-        public void UpdateStripePaymentID(int id, string sessionId, string paymentIntentId)
-        {
-            var orderFromDb = _dbSet.FirstOrDefault(u => u.Id == id);
-            if (!string.IsNullOrEmpty(sessionId))
-            {
-                orderFromDb.SessionId = sessionId;
-            }
-            if (!string.IsNullOrEmpty(paymentIntentId))
-            {
-                orderFromDb.PaymentIntentId = paymentIntentId;
-                orderFromDb.PaymentDate = DateTime.Now;
-            }
-        }
-
-        public void Add(OrderHeader orderHeader)
-        {
-            _dbSet.Add(orderHeader);
-        }
-
-        public OrderHeader Get(Expression<Func<OrderHeader, bool>> filter, string? includeProperties = null, bool tracked = false)
-        {
-            IQueryable<OrderHeader> query;
-            if (tracked)
-            {
-                query = _dbSet;
-            }
-            else
-            {
-                query = _dbSet.AsNoTracking();
-            }
-
-            query = query.Where(filter);
-            if (!string.IsNullOrEmpty(includeProperties))
-            {
-                foreach (var includeProp in includeProperties.Split(new char[] { ',' }, StringSplitOptions.RemoveEmptyEntries))
-                {
-                    query = query.Include(includeProp);
-                }
-            }
-            return query.FirstOrDefault();
-        }
-
-        public IEnumerable<OrderHeader> GetAll(Expression<Func<OrderHeader, bool>>? filter, string? includeProperties = null)
-        {
-            IQueryable<OrderHeader> query = _dbSet;
-            if (filter != null)
-            {
-                query = query.Where(filter);
-            }
-            if (!string.IsNullOrEmpty(includeProperties))
-            {
-                foreach (var includeProp in includeProperties.Split(new char[] { ',' }, StringSplitOptions.RemoveEmptyEntries))
-                {
-                    query = query.Include(includeProp);
-                }
-            }
-            return query.ToList();
-        }
-
-        public void Remove(OrderHeader orderHeader)
-        {
-            _dbSet.Remove(orderHeader);
-        }
-
-        public void RemoveRange(IEnumerable<OrderHeader> orderHeaders)
-        {
-            _dbSet.RemoveRange(orderHeaders);
-        }
-
-        public OrderHeader GetItem(int orderId, string includeProperties)
+        public async Task<OrderHeader> GetItemAsync(int orderId, string includeProperties)
         {
             IQueryable<OrderHeader> query = applicationDbContext.Set<OrderHeader>();
 
@@ -113,7 +43,7 @@ namespace BookStore.DAL.Repositories
                 }
             }
 
-            return query.FirstOrDefault(x => x.Id == orderId);
+            return await query.FirstOrDefaultAsync(x => x.Id == orderId);
         }
     }
 }

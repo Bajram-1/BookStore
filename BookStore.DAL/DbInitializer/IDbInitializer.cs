@@ -8,6 +8,6 @@ namespace BookStore.DAL.DbInitializer
 {
     public interface IDbInitializer
     {
-        void Initialize();
+        Task InitializeAsync();
     }
 }

@@ -8,14 +8,10 @@ using System.Threading.Tasks;
 
 namespace BookStore.DAL.IRepositories
 {
-    public interface IShoppingCartsRepository
+    public interface IShoppingCartsRepository : IBaseRepository<ShoppingCart, int>
     {
-        void Update(ShoppingCart cart);
-        IEnumerable<ShoppingCart> GetAll(Expression<Func<ShoppingCart, bool>>? filter = null, string? includeProperties = null);
-        ShoppingCart Get(Expression<Func<ShoppingCart, bool>> filter, string? includeProperties = null, bool tracked = false);
-        void Add(ShoppingCart shoppingCart);
-        void Remove(ShoppingCart shoppingCart);
-        void RemoveRange(IEnumerable<ShoppingCart> shoppingCarts);
-        IEnumerable<ShoppingCart> GetCartItems(string userId);
+        Task UpdateAsync(ShoppingCart cart);
+        Task<int> GetCartItemCountAsync(string userId);
+        Task<List<DAL.Entities.ShoppingCart>> GetAllAsync(Expression<Func<DAL.Entities.ShoppingCart, bool>> filter);
     }
 }

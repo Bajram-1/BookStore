@@ -13,37 +13,35 @@ namespace BookStore.Areas.Admin.Controllers
     [Authorize(Roles = StaticDetails.Role_Admin)]
     public class CompanyController(ICompaniesService _companyService) : Controller
     {
-        public IActionResult Index()
+        public async Task<IActionResult> Index()
         {
-            var companies = _companyService.GetAllCompanies();
+            var companies = await _companyService.GetAllAsync();
             return View(companies);
         }
 
-        public IActionResult Upsert(int? id)
+        public async Task<IActionResult> Upsert(int? id)
         {
             if (id == null || id == 0)
             {
-                // Create
                 return View(new CompanyAddEditRequestModel());
             }
             else
             {
-                // Update
                 try
                 {
-                    var company = _companyService.GetCompanyById(id.Value);
+                    var company = await _companyService.GetCompanyByIdAsync(id.Value);
                     return View(company);
                 }
-                catch (Exception)
+                catch
                 {
-                    return NotFound();
+                    throw;
                 }
             }
         }
 
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public IActionResult Upsert(CompanyAddEditRequestModel model)
+        public async Task<IActionResult> Upsert(CompanyAddEditRequestModel model)
         {
             if (ModelState.IsValid)
             {
@@ -51,33 +49,33 @@ namespace BookStore.Areas.Admin.Controllers
                 {
                     if (model.Id == 0)
                     {
-                        _companyService.AddCompany(model);
+                        await _companyService.AddCompanyAsync(model);
                         TempData["success"] = "Company created successfully.";
                     }
                     else
                     {
-                        _companyService.UpdateCompany(model.Id, model);
+                        await _companyService.UpdateCompanyAsync(model.Id, model);
                         TempData["success"] = "Company updated successfully.";
                     }
                     return RedirectToAction(nameof(Index));
                 }
-                catch (Exception ex)
+                catch(Exception ex)
                 {
-                    TempData["error"] = $"An error occurred: {ex.Message}";
+                    ModelState.AddModelError("Name", ex.Message);
                 }
             }
             return View(model);
         }
 
         [HttpGet]
-        public IActionResult GetAll()
+        public async Task<IActionResult> GetAll()
         {
-            var companies = _companyService.GetAllCompanies();
+            var companies = await _companyService.GetAllAsync();
             return Json(new { data = companies });
         }
 
         [HttpDelete]
-        public IActionResult Delete(int? id)
+        public async Task<IActionResult> Delete(int? id)
         {
             if (id == null)
             {
@@ -86,7 +84,7 @@ namespace BookStore.Areas.Admin.Controllers
 
             try
             {
-                _companyService.DeleteCompany(id.Value);
+                await _companyService.DeleteCompanyAsync(id.Value);
                 return Json(new { success = true, message = "Company deleted successfully" });
             }
             catch (Exception)

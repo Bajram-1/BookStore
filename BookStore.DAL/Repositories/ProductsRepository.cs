@@ -10,33 +10,22 @@ using System.Threading.Tasks;
 
 namespace BookStore.DAL.Repositories
 {
-    public class ProductsRepository(ApplicationDbContext applicationDbContext) : IProductsRepository
+    public class ProductsRepository(ApplicationDbContext applicationDbContext) : BaseRepository<Product, int>(applicationDbContext), IProductsRepository
     {
-        private readonly DbSet<Product> _dbSet = applicationDbContext.Set<Product>();
-
-        public void Add(Product product)
+        public async Task UpdateAsync(Product product)
         {
-            _dbSet.Add(product);
+            var local = _dbSet.Local.FirstOrDefault(entry => entry.Id.Equals(product.Id));
+
+            if (local != null)
+            {
+                _dbSet.Entry(local).State = EntityState.Detached;
+            }
+
+            _dbSet.Update(product);
+            await Task.CompletedTask;
         }
 
-        public Product Get(Expression<Func<Product, bool>> filter, string includeProperties = null, bool tracked = false)
-        {
-            IQueryable<Product> query = _dbSet;
-            if (!tracked)
-            {
-                query = query.AsNoTracking();
-            }
-            if (includeProperties != null)
-            {
-                foreach (var includeProperty in includeProperties.Split(new char[] { ',' }, StringSplitOptions.RemoveEmptyEntries))
-                {
-                    query = query.Include(includeProperty);
-                }
-            }
-            return query.FirstOrDefault(filter);
-        }
-
-        public IEnumerable<Product> GetAll(Expression<Func<Product, bool>> filter = null, string includeProperties = null)
+        public async Task<IEnumerable<Product>> GetAllAsync(Expression<Func<Product, bool>> filter = null, string includeProperties = null)
         {
             IQueryable<Product> query = _dbSet;
             if (filter != null)
@@ -51,7 +40,7 @@ namespace BookStore.DAL.Repositories
                 }
             }
 
-            IEnumerable<Product> productsDTO = query.Select(entity => new Product
+            IEnumerable<Product> productsDTO = await query.Select(entity => new Product
             {
                 Id = entity.Id,
                 Author = entity.Author,
@@ -65,29 +54,19 @@ namespace BookStore.DAL.Repositories
                 Price100 = entity.Price100,
                 ProductImages = entity.ProductImages,
                 Title = entity.Title,
-            });
+            }).ToListAsync();
 
-            return productsDTO.ToList();
+            return productsDTO;
         }
 
-        public DAL.Entities.Product GetProductById(int productId)
+        public async Task<Product> GetByISBNAsync(string isbn)
         {
-            return _dbSet.FirstOrDefault(p => p.Id == productId);
+            return await _dbSet.Include(p => p.ProductImages).FirstOrDefaultAsync(p => p.ISBN == isbn);
         }
 
-        public void Remove(Product product)
+        public async Task<Product> GetByTitleAndAuthorAsync(string title, string author)
         {
-            _dbSet.Remove(product);
-        }
-
-        public void RemoveRange(IEnumerable<Product> products)
-        {
-            _dbSet.RemoveRange(products);
-        }
-
-        public void Update(Product product)
-        {
-            _dbSet.Update(product);
+            return await _dbSet.Include(p => p.ProductImages).FirstOrDefaultAsync(p => p.Title == title && p.Author == author);
         }
     }
 }

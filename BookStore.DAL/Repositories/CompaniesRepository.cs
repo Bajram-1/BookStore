@@ -10,55 +10,32 @@ using System.Threading.Tasks;
 
 namespace BookStore.DAL.Repositories
 {
-    public class CompaniesRepository(ApplicationDbContext applicationDbContext) : ICompaniesRepository
+    public class CompaniesRepository(ApplicationDbContext applicationDbContext) : BaseRepository<Company, int>(applicationDbContext), ICompaniesRepository
     {
-        private readonly DbSet<Company> _dbSet = applicationDbContext.Set<Company>();
-
-        public void Update(Company company)
+        public async Task<Company> GetByNameAsync(string name)
         {
-            _dbSet.Update(company);
+            return await _dbSet.FirstOrDefaultAsync(x => x.Name == name);
         }
 
-        public void Add(Company company)
+        public async Task<Company> GetByIdAsync(int id)
         {
-            _dbSet.Add(company);
-        }
-
-        public Company Get(Expression<Func<Company, bool>> filter, string? includeProperties = null, bool tracked = false)
-        {
-            IQueryable<Company> query;
-            if (tracked)
+            var company = await _dbSet.FindAsync(id);
+            if (company == null)
             {
-                query = _dbSet;
+                throw new Exception("Company not found");
             }
-            else
-            {
-                query = _dbSet.AsNoTracking();
-            }
-
-            query = query.Where(filter);
-            if (!string.IsNullOrEmpty(includeProperties))
-            {
-                foreach (var includeProp in includeProperties.Split(new char[] { ',' }, StringSplitOptions.RemoveEmptyEntries))
-                {
-                    query = query.Include(includeProp);
-                }
-            }
-            return query.FirstOrDefault();
+            return company;
         }
 
-        public Company? GetByName(string name)
-        {
-            return _dbSet.FirstOrDefault(x => x.Name == name);
-        }
-
-        public IEnumerable<Company> GetAll(Expression<Func<Company, bool>>? filter, string? includeProperties = null)
+        public async Task<IEnumerable<Company>> GetAllAsync(Expression<Func<Company, bool>> filter = null, string includeProperties = null)
         {
             IQueryable<Company> query = _dbSet;
+
             if (filter != null)
             {
                 query = query.Where(filter);
             }
+
             if (!string.IsNullOrEmpty(includeProperties))
             {
                 foreach (var includeProp in includeProperties.Split(new char[] { ',' }, StringSplitOptions.RemoveEmptyEntries))
@@ -66,22 +43,8 @@ namespace BookStore.DAL.Repositories
                     query = query.Include(includeProp);
                 }
             }
-            return query.ToList();
-        }
 
-        public void Remove(Company company)
-        {
-            _dbSet.Remove(company);
-        }
-
-        public void RemoveRange(IEnumerable<Company> companies)
-        {
-            _dbSet.RemoveRange(companies);
-        }
-
-        public Company GetById(int id)
-        {
-            return _dbSet.Find(id) ?? throw new Exception("Company not found");
+            return await query.ToListAsync();
         }
     }
 }

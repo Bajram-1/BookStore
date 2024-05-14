@@ -10,9 +10,10 @@ namespace BookStore.Areas.Admin.Controllers
     [Authorize(Roles = StaticDetails.Role_Admin)]
     public class CategoryController(ICategoriesService categoriesService) : Controller
     {
-        public IActionResult Index()
+        public async Task<IActionResult> Index()
         {
-            return View(categoriesService.GetCategories());
+            var categories = await categoriesService.GetCategories();
+            return View(categories);
         }
 
         [HttpGet]
@@ -23,51 +24,66 @@ namespace BookStore.Areas.Admin.Controllers
 
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public IActionResult Create(CategoryAddEditRequestModel category)
-        {
-            if (ModelState.IsValid)
-            {
-                categoriesService.Create(category);
-                TempData["success"] = "Category created successfully.";
-                return RedirectToAction(nameof(Index));
-            }
-            return View(category);
-        }
-
-        [HttpGet]
-        public IActionResult Edit(int id)
-        {
-            var category = categoriesService.GetById(id);
-            if (category == null)
-            {
-                return NotFound();
-            }
-            return View(category);
-        }
-
-        [HttpPost]
-        [ValidateAntiForgeryToken]
-        public IActionResult Edit(int id, CategoryAddEditRequestModel model)
+        public async Task<IActionResult> Create(CategoryAddEditRequestModel category)
         {
             if (ModelState.IsValid)
             {
                 try
                 {
-                    categoriesService.Update(id, model);
+                    var createdCategory = await categoriesService.Create(category);
+                    TempData["success"] = "Category created successfully.";
+                    return RedirectToAction(nameof(Index));
+                }
+                catch
+                {
+                    ModelState.AddModelError("Name", "This category already exists.");
+                }
+            }
+            return View(category);
+        }
+
+        [HttpGet]
+        public async Task<IActionResult> Edit(int id)
+        {
+            try
+            {
+                var category = await categoriesService.GetByIdAsync(id);
+                if (category == null)
+                {
+                    return NotFound();
+                }
+                return View(category);
+            }
+            catch
+            {
+                throw;
+            }
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> Edit(int id, CategoryAddEditRequestModel model)
+        {
+            if (ModelState.IsValid)
+            {
+                try
+                {
+                    await categoriesService.Update(id, model);
                     TempData["success"] = "Category updated successfully.";
                     return RedirectToAction(nameof(Index));
                 }
                 catch (Exception ex)
                 {
-                    ModelState.AddModelError(string.Empty, $"Error updating category: {ex.Message}");
+                    ModelState.AddModelError("Name", ex.Message);
                 }
             }
             return View(model);
         }
 
-        public IActionResult Delete(int id)
+        [HttpGet]
+        public async Task<IActionResult> Delete(int id)
         {
-            var category = categoriesService.GetById(id);
+            var category = await categoriesService.GetByIdAsync(id);
             if (category == null)
             {
                 return NotFound();
@@ -78,9 +94,9 @@ namespace BookStore.Areas.Admin.Controllers
         [HttpPost]
         [ValidateAntiForgeryToken]
         [ActionName("Delete")]
-        public IActionResult DeleteConfirmed(int id)
+        public async Task<IActionResult> DeleteConfirmed(int id)
         {
-            categoriesService.Delete(id);
+            await categoriesService.Delete(id);
             TempData["success"] = "Category deleted successfully.";
             return RedirectToAction(nameof(Index));
         }

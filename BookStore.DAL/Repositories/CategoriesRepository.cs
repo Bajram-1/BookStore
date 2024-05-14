@@ -1,38 +1,35 @@
 ﻿using BookStore.DAL.Entities;
 using BookStore.DAL.IRepositories;
 using Microsoft.EntityFrameworkCore;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Linq.Expressions;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace BookStore.DAL.Repositories
 {
-    public class CategoriesRepository(ApplicationDbContext applicationDbContext) : ICategoriesRepository
+    public class CategoriesRepository(ApplicationDbContext applicationDbContext) : BaseRepository<Category, int>(applicationDbContext), ICategoriesRepository
     {
-        private readonly DbSet<Category> _dbSet = applicationDbContext.Set<Category>();
-
-        public void Create(Category category)
+        public async Task DeleteAsync(int id)
         {
-            _dbSet.Add(category);
-        }
-
-        public void Delete(int id)
-        {
-            var category = GetById(id);
+            var category = await GetByIdAsync(id);
             _dbSet.Remove(category);
         }
 
-        public Category GetById(int id)
+        public async Task<Category> GetByIdAsync(int id)
         {
-            return _dbSet.Find(id) ?? throw new Exception("Category not found");
+            return await _dbSet.FindAsync(id) ?? throw new Exception("Category not found");
         }
 
-        public IEnumerable<Category> GetAll()
+        public async Task<Category> GetByNameAsync(string name)
         {
-            return _dbSet.ToList();
+            return await _dbSet.FirstOrDefaultAsync(c => c.Name == name);
+        }
+
+        public async Task<IEnumerable<Category>> GetAllAsync()
+        {
+            return await _dbSet.ToListAsync();
+        }
+
+        public async Task<int> GetActualDisplayOrderAsync()
+        {
+            return await _dbSet.MaxAsync(c => (int?)c.DisplayOrder) ?? 0;
         }
     }
 }
